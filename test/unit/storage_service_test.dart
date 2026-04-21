@@ -68,4 +68,29 @@ void main() {
       expect(storageService.customCategories.length, 1);
     });
   });
+
+  group('StorageService - addCustomFood', () {
+    test('should add food to default category and show in getAllFoods', () async {
+      await storageService.init();
+
+      expect(getAllFoods(storageService.customCategories, storageService.customFoods).contains('Riz'), false);
+
+      await storageService.addCustomFood('Riz', categoryName: 'Graines');
+
+      expect(storageService.customFoods.contains('Riz'), true);
+      expect(getAllFoods(storageService.customCategories, storageService.customFoods).contains('Riz'), true);
+    });
+
+    test('should show custom food in dropdown when selecting default category', () async {
+      await storageService.init();
+
+      await storageService.addCustomFood('Riz', categoryName: 'Graines');
+      await storageService.addCustomFood('Pâtes', categoryName: 'Glucides');
+
+      final allFoods = getAllFoods(storageService.customCategories, storageService.customFoods);
+
+      expect(allFoods.contains('Riz'), true);
+      expect(allFoods.contains('Pâtes'), true);
+    });
+  });
 }

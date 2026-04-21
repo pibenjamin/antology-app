@@ -85,6 +85,10 @@ class StorageService {
     await _prefs.setString('colonies', json);
   }
 
+  Future<void> saveColonies() async {
+    await _saveColonies();
+  }
+
   Future<void> _saveFeedingEvents() async {
     final json = jsonEncode(feedingEvents.map((e) => {'id': e.id, 'colonyId': e.colonyId, 'foodType': e.foodType, 'quantity': e.quantity, 'fedAt': e.fedAt.toIso8601String(), 'notes': e.notes, 'rating': e.rating}).toList());
     await _prefs.setString('feedingEvents', json);
@@ -155,27 +159,43 @@ class StorageService {
   }
 
   Future<void> addCustomFood(String foodName, {String? categoryName}) async {
-    if (allFoods.contains(foodName)) return;
+    if (allFoods.any((f) => f.toLowerCase() == foodName.toLowerCase())) return;
     customFoods.add(foodName);
     if (categoryName != null) {
-      final defaultCat = defaultFoodCategories.where((c) => c.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      final lowerCat = categoryName.toLowerCase();
+      final defaultCat = defaultFoodCategories.where((c) => c.name.toLowerCase() == lowerCat).firstOrNull;
       if (defaultCat != null) {
+        defaultCat.foods.add(foodName);
         await _saveCustomFoods();
         return;
       }
-      final customCat = customCategories.where((c) => c.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      final customCat = customCategories.where((c) => c.name.toLowerCase() == lowerCat).firstOrNull;
       if (customCat != null) {
         customCat.foods.add(foodName);
       } else {
         customCategories.add(FoodCategory(categoryName, [foodName]));
       }
     } else {
-      var defaultCat = customCategories.where((c) => c.name == 'Personnalisé').firstOrNull;
-      if (defaultCat == null) {
-        defaultCat = FoodCategory('Personnalisé', []);
-        customCategories.add(defaultCat);
+      var customCat = customCategories.where((c) => c.name.toLowerCase() == 'personnalisé').firstOrNull;
+      if (customCat == null) {
+        customCat = FoodCategory('Personnalisé', []);
+        customCategories.add(customCat);
       }
-      defaultCat.foods.add(foodName);
+      customCat.foods.add(foodName);
+    }
+    await _saveCustomCategories();
+    await _saveCustomFoods();
+  }
+
+  Future<void> deleteCustomCategory(String name) async {
+    customCategories.removeWhere((c) => c.name.toLowerCase() == name.toLowerCase());
+    await _saveCustomCategories();
+  }
+
+  Future<void> deleteCustomFood(String foodName) async {
+    customFoods.removeWhere((f) => f.toLowerCase() == foodName.toLowerCase());
+    for (final cat in customCategories) {
+      cat.foods.removeWhere((f) => f.toLowerCase() == foodName.toLowerCase());
     }
     await _saveCustomCategories();
     await _saveCustomFoods();

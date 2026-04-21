@@ -125,28 +125,53 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  ...allCats.map((cat) => ExpansionTile(
-                    title: Text(cat.name),
-                    children: cat.foods.isEmpty
-                        ? [const ListTile(title: Text('Aucun aliment', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)))]
-                        : cat.foods.map((f) {
-                            final pref = colonyPrefs.where((p) => p.foodType == f).firstOrNull;
-                            return ListTile(
-                              title: Text(f),
-                              trailing: GestureDetector(
-                                onTap: () => _togglePref(context, f, pref?.status),
-                                child: Chip(
-                                  label: Text(pref?.status?.name == 'accepted' ? 'Accepté' : pref?.status?.name == 'rejected' ? 'Refusé' : 'Non testé'),
-                                  backgroundColor: pref?.status == FoodStatus.accepted
-                                      ? Colors.green.shade100
-                                      : pref?.status == FoodStatus.rejected
-                                          ? Colors.red.shade100
-                                          : Colors.grey.shade200,
+                  ...allCats.map((cat) {
+                    final isCustomCategory = widget.storage.customCategories.any((c) => c.name.toLowerCase() == cat.name.toLowerCase());
+                    return ExpansionTile(
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(cat.name)),
+                          if (isCustomCategory)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                              onPressed: () => _showDeleteCategory(context, cat.name),
+                              tooltip: 'Supprimer la catégorie',
+                            ),
+                        ],
+                      ),
+                      children: cat.foods.isEmpty
+                          ? [const ListTile(title: Text('Aucun aliment', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)))]
+                          : cat.foods.map((f) {
+                              final pref = colonyPrefs.where((p) => p.foodType == f).firstOrNull;
+                              final isCustomFood = widget.storage.customFoods.any((food) => food.toLowerCase() == f.toLowerCase());
+                              return ListTile(
+                                title: Text(f),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isCustomFood)
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                        onPressed: () => _showDeleteFood(context, f),
+                                        tooltip: 'Supprimer l\'aliment',
+                                      ),
+                                    GestureDetector(
+                                      onTap: () => _togglePref(context, f, pref?.status),
+                                      child: Chip(
+                                        label: Text(pref?.status?.name == 'accepted' ? 'Accepté' : pref?.status?.name == 'rejected' ? 'Refusé' : 'Non testé'),
+                                        backgroundColor: pref?.status == FoodStatus.accepted
+                                            ? Colors.green.shade100
+                                            : pref?.status == FoodStatus.rejected
+                                                ? Colors.red.shade100
+                                                : Colors.grey.shade200,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            );
-                          }).toList(),
-                  )),
+                              );
+                            }).toList(),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -447,5 +472,49 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     }
     await widget.storage.addFoodPreference(FoodPreference(colonyId: widget.colony.id, foodType: food, status: newStatus));
     _refresh();
+  }
+
+  void _showDeleteCategory(BuildContext context, String categoryName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer la catégorie ?'),
+        content: Text('Supprimer "$categoryName" et tous ses aliments ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              await widget.storage.deleteCustomCategory(categoryName);
+              Navigator.pop(ctx);
+              _refresh();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteFood(BuildContext context, String foodName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer l\'aliment ?'),
+        content: Text('Supprimer "$foodName" ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () async {
+              await widget.storage.deleteCustomFood(foodName);
+              Navigator.pop(ctx);
+              _refresh();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
   }
 }
