@@ -41,6 +41,7 @@ class StorageService {
         name: e['name'],
         species: e['species'],
         createdAt: DateTime.parse(e['createdAt']),
+        population: e['population'] ?? 0,
       )).toList();
     }
 
@@ -81,7 +82,7 @@ class StorageService {
   }
 
   Future<void> _saveColonies() async {
-    final json = jsonEncode(colonies.map((c) => {'id': c.id, 'name': c.name, 'species': c.species, 'createdAt': c.createdAt.toIso8601String()}).toList());
+    final json = jsonEncode(colonies.map((c) => {'id': c.id, 'name': c.name, 'species': c.species, 'createdAt': c.createdAt.toIso8601String(), 'population': c.population}).toList());
     await _prefs.setString('colonies', json);
   }
 

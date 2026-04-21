@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
+import '../antology_theme.dart';
 
 class AddColonyScreen extends StatefulWidget {
   final StorageService storage;
@@ -14,6 +15,7 @@ class AddColonyScreen extends StatefulWidget {
 class _AddColonyScreenState extends State<AddColonyScreen> {
   final _nameController = TextEditingController();
   final _speciesController = TextEditingController();
+  int _population = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +32,26 @@ class _AddColonyScreenState extends State<AddColonyScreen> {
             const SizedBox(height: 16),
             TextField(controller: _speciesController, decoration: const InputDecoration(labelText: 'Espèce', border: OutlineInputBorder())),
             const SizedBox(height: 24),
+            Text('Population: $_population', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            Slider(
+              value: _population.toDouble(),
+              min: 0,
+              max: 5000,
+              divisions: 50,
+              label: _population.toString(),
+              activeColor: AntologyColors.forestGreen,
+              onChanged: (value) => setState(() => _population = value.round()),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('0', style: TextStyle(color: Colors.grey)),
+                const Text('5000', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _addColony,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.all(16)),
               child: const Text('Ajouter', style: TextStyle(fontSize: 16)),
             ),
           ],
@@ -48,6 +67,7 @@ class _AddColonyScreenState extends State<AddColonyScreen> {
       name: _nameController.text,
       species: _speciesController.text,
       createdAt: DateTime.now(),
+      population: _population,
     ));
     Navigator.pop(context);
   }

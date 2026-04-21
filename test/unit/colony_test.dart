@@ -82,4 +82,41 @@ void main() {
       expect(colony1.id, colony2.id);
     });
   });
+
+  group('Colony population', () {
+    test('should create colony with population', () {
+      final colony = Colony(
+        id: '1',
+        name: 'Athéna',
+        species: 'Messor barbarus',
+        createdAt: DateTime(2025, 4, 1),
+        population: 500,
+      );
+
+      expect(colony.population, 500);
+    });
+
+    test('should default population to 0', () {
+      final colony = Colony(
+        id: '1',
+        name: 'Athéna',
+        species: 'Messor barbarus',
+        createdAt: DateTime(2025, 4, 1),
+      );
+
+      expect(colony.population, 0);
+    });
+
+    test('should handle population at max range', () {
+      final colony = Colony(
+        id: '1',
+        name: 'Athéna',
+        species: 'Messor barbarus',
+        createdAt: DateTime(2025, 4, 1),
+        population: 5000,
+      );
+
+      expect(colony.population, 5000);
+    });
+  });
 }

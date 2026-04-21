@@ -13,8 +13,9 @@ class Colony {
   final String name;
   final String species;
   final DateTime createdAt;
+  final int population;
 
-  Colony({required this.id, required this.name, required this.species, required this.createdAt});
+  Colony({required this.id, required this.name, required this.species, required this.createdAt, this.population = 0});
 }
 
 class Individual {

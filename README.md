@@ -15,3 +15,9 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+
+Last open code session id :
+
+Session : New session - 2026-04-21T08:06:22.588Z
+Continue : opencode -s 250ec8504f1fcabdv1x1elxx5

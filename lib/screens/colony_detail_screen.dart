@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
 import '../antology_theme.dart';
+import '../widgets/category_food_selector.dart';
 
 class ColonyDetailScreen extends StatefulWidget {
   final Colony colony;
@@ -229,7 +230,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   void _showEditFeeding(BuildContext context, FeedingEvent event) {
     String? selectedFood = event.foodType;
     final quantityController = TextEditingController(text: event.quantity);
-    final allFoodsList = getAllFoods(widget.storage.customCategories, widget.storage.customFoods);
+    final allCats = getAllCategories(widget.storage.customCategories);
     DateTime selectedDate = event.fedAt;
     int? selectedRating = event.rating;
 
@@ -240,11 +241,10 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
           title: const Text('Modifier nourrissage'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              DropdownButtonFormField<String>(
-                value: allFoodsList.contains(event.foodType) ? event.foodType : null,
-                decoration: const InputDecoration(labelText: 'Aliment'),
-                items: allFoodsList.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
-                onChanged: (v) => selectedFood = v,
+              CategoryFoodSelector(
+                categories: allCats,
+                customFoods: widget.storage.customFoods,
+                onSelected: (category, food) => selectedFood = food,
               ),
               const SizedBox(height: 16),
               TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
@@ -280,7 +280,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                       child: Icon(
                         Icons.restaurant_menu,
                         size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
-                        color: selectedRating != null && rating <= selectedRating! ? Colors.orange : Colors.grey,
+                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
                       ),
                     ),
                   );
@@ -315,7 +315,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   void _showAddFeeding(BuildContext context) {
     String? selectedFood;
     final quantityController = TextEditingController();
-    final allFoodsList = getAllFoods(widget.storage.customCategories, widget.storage.customFoods);
+    final allCats = getAllCategories(widget.storage.customCategories);
     DateTime selectedDate = DateTime.now();
     int? selectedRating;
 
@@ -326,10 +326,10 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
           title: const Text('Enregistrer nourrissage'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Aliment'),
-                items: allFoodsList.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
-                onChanged: (v) => selectedFood = v,
+              CategoryFoodSelector(
+                categories: allCats,
+                customFoods: widget.storage.customFoods,
+                onSelected: (category, food) => selectedFood = food,
               ),
               const SizedBox(height: 16),
               TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
@@ -365,7 +365,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                       child: Icon(
                         Icons.restaurant_menu,
                         size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
-                        color: selectedRating != null && rating <= selectedRating! ? Colors.orange : Colors.grey,
+                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
                       ),
                     ),
                   );
