@@ -34,8 +34,9 @@ class FeedingEvent {
   final String? quantity;
   final DateTime fedAt;
   final String? notes;
+  final int? rating;
 
-  FeedingEvent({required this.id, required this.colonyId, required this.foodType, this.quantity, required this.fedAt, this.notes});
+  FeedingEvent({required this.id, required this.colonyId, required this.foodType, this.quantity, required this.fedAt, this.notes, this.rating});
 }
 
 class FeedingSchedule {

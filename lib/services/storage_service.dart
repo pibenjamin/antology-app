@@ -22,7 +22,7 @@ class StorageService {
     if (colonies.isEmpty) {
       colonies.add(Colony(id: generateId(), name: 'Athéna', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
       colonies.add(Colony(id: generateId(), name: 'Eclair', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
-      colonies.add(Colony(id: generateId(), name: 'Eclair', species: 'Lasius niger', createdAt: DateTime(2025, 6, 1)));
+      colonies.add(Colony(id: generateId(), name: 'Mama', species: 'Lasius niger', createdAt: DateTime(2025, 6, 1)));
       await _saveColonies();
     }
   }
@@ -54,6 +54,7 @@ class StorageService {
         quantity: e['quantity'],
         fedAt: DateTime.parse(e['fedAt']),
         notes: e['notes'],
+        rating: e['rating'],
       )).toList();
     }
 
@@ -85,7 +86,7 @@ class StorageService {
   }
 
   Future<void> _saveFeedingEvents() async {
-    final json = jsonEncode(feedingEvents.map((e) => {'id': e.id, 'colonyId': e.colonyId, 'foodType': e.foodType, 'quantity': e.quantity, 'fedAt': e.fedAt.toIso8601String(), 'notes': e.notes}).toList());
+    final json = jsonEncode(feedingEvents.map((e) => {'id': e.id, 'colonyId': e.colonyId, 'foodType': e.foodType, 'quantity': e.quantity, 'fedAt': e.fedAt.toIso8601String(), 'notes': e.notes, 'rating': e.rating}).toList());
     await _prefs.setString('feedingEvents', json);
   }
 
@@ -115,6 +116,19 @@ class StorageService {
     await _saveFeedingEvents();
   }
 
+  Future<void> updateFeedingEvent(FeedingEvent e) async {
+    final index = feedingEvents.indexWhere((fe) => fe.id == e.id);
+    if (index != -1) {
+      feedingEvents[index] = e;
+      await _saveFeedingEvents();
+    }
+  }
+
+  Future<void> deleteFeedingEvent(String id) async {
+    feedingEvents.removeWhere((e) => e.id == id);
+    await _saveFeedingEvents();
+  }
+
   Future<void> addFoodPreference(FoodPreference p) async {
     foodPreferences.removeWhere((x) => x.colonyId == p.colonyId && x.foodType == p.foodType);
     foodPreferences.add(p);
@@ -131,22 +145,39 @@ class StorageService {
     await _prefs.setString('customFoods', json);
   }
 
-  Future<void> addCustomCategory(String name) async {
-    if (customCategories.any((c) => c.name.toLowerCase() == name.toLowerCase())) return;
+  Future<bool> addCustomCategory(String name) async {
+    final lowerName = name.toLowerCase();
+    if (defaultFoodCategories.any((c) => c.name.toLowerCase() == lowerName)) return false;
+    if (customCategories.any((c) => c.name.toLowerCase() == lowerName)) return false;
     customCategories.add(FoodCategory(name, []));
     await _saveCustomCategories();
+    return true;
   }
 
   Future<void> addCustomFood(String foodName, {String? categoryName}) async {
     if (allFoods.contains(foodName)) return;
     customFoods.add(foodName);
     if (categoryName != null) {
-      final cat = customCategories.where((c) => c.name == categoryName).firstOrNull;
-      if (cat != null) {
-        cat.foods.add(foodName);
-        await _saveCustomCategories();
+      final defaultCat = defaultFoodCategories.where((c) => c.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      if (defaultCat != null) {
+        await _saveCustomFoods();
+        return;
       }
+      final customCat = customCategories.where((c) => c.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      if (customCat != null) {
+        customCat.foods.add(foodName);
+      } else {
+        customCategories.add(FoodCategory(categoryName, [foodName]));
+      }
+    } else {
+      var defaultCat = customCategories.where((c) => c.name == 'Personnalisé').firstOrNull;
+      if (defaultCat == null) {
+        defaultCat = FoodCategory('Personnalisé', []);
+        customCategories.add(defaultCat);
+      }
+      defaultCat.foods.add(foodName);
     }
+    await _saveCustomCategories();
     await _saveCustomFoods();
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'services/storage_service.dart';
-import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/colony_detail_screen.dart';
+import 'screens/add_colony_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ class AntologyApp extends StatelessWidget {
       home: HomeScreen(storage: storage),
       routes: {
         '/home': (context) => HomeScreen(storage: storage),
+        '/add-colony': (context) => AddColonyScreen(storage: storage),
       },
     );
   }

@@ -22,6 +22,8 @@ flutter run    # Lancer l'application
 - Toutes les demandes doivent être documentées dans `AGENT.md`
 - Utiliser le format User Story / EPIC avec statut
 - Fournir `flutter run` à la fin des sessions de modifications
+- Conception graphique basée sur Material Design : https://docs.flutter.dev/ui/design/material
+- **TDD par défaut** : Écrire les tests avant le code (test unitaire → code → test widget → refactor)
 
 ## User Stories
 
