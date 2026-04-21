@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
+import '../antology_theme.dart';
 
 class ColonyDetailScreen extends StatefulWidget {
   final Colony colony;
@@ -195,7 +196,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
             child: const Text('Supprimer'),
           ),
         ],
@@ -217,7 +218,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
               Navigator.pop(ctx);
               _refresh();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
             child: const Text('Supprimer'),
           ),
         ],
@@ -488,7 +489,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
               Navigator.pop(ctx);
               _refresh();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
             child: const Text('Supprimer'),
           ),
         ],
@@ -510,7 +511,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
               Navigator.pop(ctx);
               _refresh();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
             child: const Text('Supprimer'),
           ),
         ],

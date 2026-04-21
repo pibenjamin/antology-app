@@ -95,6 +95,22 @@ class AntologyTheme {
           ),
         ),
       ),
+
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AntologyColors.forestGreen,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          minimumSize: const Size(140, 44),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.black87,
@@ -203,4 +219,8 @@ class AntologySpacing {
 
   static const EdgeInsets cardPadding = EdgeInsets.all(12);
   static const EdgeInsets screenPadding = EdgeInsets.all(16);
+}
+
+class AntologyImages {
+  static const String antLogo = 'assets/images/ant_logo.svg';
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
+import '../antology_theme.dart';
 import 'colony_detail_screen.dart';
 import 'add_colony_screen.dart';
 
@@ -27,10 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Tableau de bord'),
-          NavigationDestination(icon: Icon(Icons.pest_control), label: 'Colonies'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Paramètres'),
+        destinations: [
+          const NavigationDestination(icon: Icon(Icons.dashboard), label: 'Tableau de bord'),
+          NavigationDestination(icon: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24), label: 'Colonies'),
+          const NavigationDestination(icon: Icon(Icons.settings), label: 'Paramètres'),
         ],
       ),
     );
@@ -47,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const Text('Mes Colonies', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                ...colonies.map((c) => Card(child: ListTile(leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.pest_control, color: Colors.white)), title: Text(c.name), subtitle: Text(c.species), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData())))),
+                ...colonies.map((c) => Card(child: ListTile(leading: CircleAvatar(backgroundColor: AntologyColors.tealLight, child: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24)), title: Text(c.name), subtitle: Text(c.species), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData())))),
               ],
             ),
       floatingActionButton: FloatingActionButton(onPressed: _showAddColony, child: const Icon(Icons.add)),
@@ -108,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(title: const Text('Supprimer ?'), content: Text('Supprimer "${c.name}" ?'), actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-        ElevatedButton(onPressed: () { widget.storage.deleteColony(c.id); _loadData(); Navigator.pop(ctx); }, style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Supprimer')),
+        ElevatedButton(onPressed: () { widget.storage.deleteColony(c.id); _loadData(); Navigator.pop(ctx); }, style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white), child: const Text('Supprimer')),
       ]),
     );
   }
