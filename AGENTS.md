@@ -22,3 +22,7 @@ flutter run    # Lancer l'application
 - Toutes les demandes doivent être documentées dans `AGENT.md`
 - Utiliser le format User Story / EPIC avec statut
 - Fournir `flutter run` à la fin des sessions de modifications
+
+## User Stories
+
+Les user stories détaillées sont dans `_bmad-output/planning-artifacts/user-stories.md`

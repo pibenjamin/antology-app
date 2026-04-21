@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/models.dart';
+import '../models/food_data.dart';
 
 class StorageService {
   late SharedPreferences _prefs;
@@ -11,11 +12,19 @@ class StorageService {
   List<FeedingSchedule> feedingSchedules = [];
   List<FoodPreference> foodPreferences = [];
   List<GrowthRecord> growthRecords = [];
+  List<FoodCategory> customCategories = [];
+  List<String> customFoods = [];
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     AppConfig.debugMode = _prefs.getBool('debugMode') ?? false;
     await _loadData();
+    if (colonies.isEmpty) {
+      colonies.add(Colony(id: generateId(), name: 'Athéna', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
+      colonies.add(Colony(id: generateId(), name: 'Eclair', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
+      colonies.add(Colony(id: generateId(), name: 'Eclair', species: 'Lasius niger', createdAt: DateTime(2025, 6, 1)));
+      await _saveColonies();
+    }
   }
 
   Future<void> setDebugMode(bool value) async {
@@ -56,6 +65,17 @@ class StorageService {
         foodType: e['foodType'],
         status: FoodStatus.values.firstWhere((s) => s.name == e['status']),
       )).toList();
+    }
+
+    final customCatsJson = _prefs.getString('customCategories');
+    if (customCatsJson != null) {
+      final list = jsonDecode(customCatsJson) as List;
+      customCategories = list.map((e) => FoodCategory(e['name'], List<String>.from(e['foods']))).toList();
+    }
+
+    final customFoodsJson = _prefs.getString('customFoods');
+    if (customFoodsJson != null) {
+      customFoods = List<String>.from(jsonDecode(customFoodsJson));
     }
   }
 
@@ -99,5 +119,34 @@ class StorageService {
     foodPreferences.removeWhere((x) => x.colonyId == p.colonyId && x.foodType == p.foodType);
     foodPreferences.add(p);
     await _saveFoodPreferences();
+  }
+
+  Future<void> _saveCustomCategories() async {
+    final json = jsonEncode(customCategories.map((c) => {'name': c.name, 'foods': c.foods}).toList());
+    await _prefs.setString('customCategories', json);
+  }
+
+  Future<void> _saveCustomFoods() async {
+    final json = jsonEncode(customFoods);
+    await _prefs.setString('customFoods', json);
+  }
+
+  Future<void> addCustomCategory(String name) async {
+    if (customCategories.any((c) => c.name.toLowerCase() == name.toLowerCase())) return;
+    customCategories.add(FoodCategory(name, []));
+    await _saveCustomCategories();
+  }
+
+  Future<void> addCustomFood(String foodName, {String? categoryName}) async {
+    if (allFoods.contains(foodName)) return;
+    customFoods.add(foodName);
+    if (categoryName != null) {
+      final cat = customCategories.where((c) => c.name == categoryName).firstOrNull;
+      if (cat != null) {
+        cat.foods.add(foodName);
+        await _saveCustomCategories();
+      }
+    }
+    await _saveCustomFoods();
   }
 }
