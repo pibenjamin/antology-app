@@ -2,6 +2,7 @@ class AppConfig {
   static bool debugMode = false;
   static String debugEmail = 'benjaminpiscart@gmail.com';
   static String debugPassword = 'welcome2HRSD2022!';
+  static const List<int> populationTiers = [0, 5, 10, 15, 20, 30, 50, 100, 200, 500, 1000, 2000, 5000];
 }
 
 enum Role { queen, worker, male, brood }
@@ -14,8 +15,18 @@ class Colony {
   final String species;
   final DateTime createdAt;
   final int population;
+  final List<String> photos;
+  final String? featuredPhoto;
 
-  Colony({required this.id, required this.name, required this.species, required this.createdAt, this.population = 0});
+  Colony({
+    required this.id,
+    required this.name,
+    required this.species,
+    required this.createdAt,
+    this.population = 0,
+    this.photos = const [],
+    this.featuredPhoto,
+  });
 }
 
 class Individual {

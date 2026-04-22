@@ -469,6 +469,8 @@ Feature: Colonies示例 au premier lancement
 | EPIC 3 | Préférences Alimentaires | ✅ Terminé |
 | EPIC 4 | Interface Utilisateur | ✅ Terminé |
 | EPIC 5 | Fermeture des Dialogs | ✅ Terminé |
+| EPIC 6 | Population des Colonies | ✅ Terminé |
+| EPIC 7 | Paliers de Population | 🔄 En cours |
 
 ---
 
@@ -525,6 +527,131 @@ Feature: Population des colonies
 
 ---
 
+## EPIC 7 : Paliers de Population
+
+### US7.1 : Sélection de la population par paliers
+
+**En tant que** propriétaire de fourmis,
+**je veux** sélectionner la population avec des paliers prédéfinis,
+**afin d'avoir une estimation plus réaliste de ma colonie.
+
+Les paliers reflètent la biologie des fourmis (croissance exponentielle au début, puis stabilisation).
+
+```gherkin
+Feature: Paliers de population
+
+  Scenario: Slider affiche les paliers
+    Given l'utilisateur crée une colonie
+    When le slider de population est affiché
+    Then les valeurs possible sont: 0, 5, 10, 15, 20, 30, 50, 100, 200, 500, 1000, 2000, 5000
+
+  Scenario: Sélection d'un palier
+    Given le slider est à l'index 5
+    When l'utilisateur déplace le slider
+    Then la valeur affichée est 30
+
+  Scenario: Modification avec palier existant
+    Given une colonie a population = 20
+    When l'utilisateur modifie la colonie
+    Then le slider affiche 20 (index 4)
+
+  Scenario: Labels du slider
+    Given le slider est affiché
+    Then les extrémités affichent "0" et "5000"
+```
+
+---
+
+## Statut Global
+
+| EPIC | Titre | Statut |
+|------|-------|--------|
+| EPIC 1 | Gestion des Colonies | ✅ Terminé |
+| EPIC 2 | Nourrissage | ✅ Terminé |
+| EPIC 3 | Préférences Alimentaires | ✅ Terminé |
+| EPIC 4 | Interface Utilisateur | ✅ Terminé |
+| EPIC 5 | Fermeture des Dialogs | ✅ Terminé |
+| EPIC 6 | Population des Colonies | ✅ Terminé |
+| EPIC 7 | Paliers de Population | ✅ Terminé |
+| EPIC 8 | Photos des Colonies | 🔄 En cours |
+
+---
+
+## EPIC 8 : Photos des Colonies
+
+### US8.1 : Ajouter des photos à une colonie
+
+**En tant que** propriétaire de fourmis,
+**je veux** ajouter des photos à ma colonie,
+**afin de** mieux identifier visuellement mes colonies.
+
+```gherkin
+Feature: Photos des colonies
+
+  Scenario: Ajouter une photo depuis la galerie
+    Given l'utilisateur est sur l'écran de détail d'une colonie
+    When l'utilisateur clique sur "Ajouter une photo"
+    And l'utilisateur的选择 une image depuis la galerie
+    Then la photo est ajoutée à la liste des photos
+
+  Scenario: Ajouter une photo depuis l'appareil
+    Given l'utilisateur est sur l'écran de détail d'une colonie
+    When l'utilisateur clique sur "Prendre une photo"
+    And l'utilisateur prend une photo
+    Then la photo est ajoutée à la liste des photos
+
+  Scenario: Voir la galerie de photos
+    Given une colonie a des photos
+    When l'utilisateur consulte la colonie
+    Then toutes les photos sont affichées dans une grille
+```
+
+---
+
+### US8.2 : Définir une photo en avant
+
+**En tant que** propriétaire de fourmis,
+**je veux** choisir une photo en avant,
+**afin qu'elle** s'affiche dans la liste des colonies.
+
+```gherkin
+Feature: Photo en avant
+
+  Scenario: Définir une photo en avant
+    Given une colonie a plusieurs photos
+    When l'utilisateur clique sur une photo
+    And l'utilisateur clique sur "Définir en avant"
+    Then cette photo devient la photo en avant
+    And elle s'affiche dans la liste des colonies
+
+  Scenario: Retirer la photo en avant
+    Given une colonie a une photo en avant
+    When l'utilisateur clique sur "Retirer"
+    Then aucune photo en avant n'est définie
+```
+
+---
+
+### US8.3 : Rogner une photo au format carré
+
+**En tant que** propriétaire de fourmis,
+**je veux** rogner mes photos au format carré,
+**afin d'avoir** une affiche uniforme.
+
+```gherkin
+Feature: Rogner les photos
+
+  Scenario: Rogner une photo au format carré
+    Given l'utilisateur ajoute une photo
+    When l'outil de rognage s'ouvre
+    And l'utilisateur ajuste le cadre carrée
+    And l'utilisateur valide
+    Then la photo est rognée au format carré
+    And la photo est ajoutée à la colonie
+```
+
+---
+
 ## Fonctionnalités Futures (Backlog)
 
 ### USF1.1 : Historique complet des nourritages
@@ -532,9 +659,6 @@ Pagination ou infinite scroll pour tous les nourritages
 
 ### USF1.2 : Statistiques de nourrissage
 Graphiques d'évolution du nourrissage par période
-
-### USF1.3 : Photos des colonies
-Ajout de photos pour identifier visuellement les colonies
 
 ### USF1.4 : Rappels de nourrissage
 Notifications pour rappeler le prochain nourrissage

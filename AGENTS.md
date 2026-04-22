@@ -24,7 +24,7 @@ flutter run    # Lancer l'application
 - Fournir `flutter run` à la fin des sessions de modifications
 - Conception graphique basée sur Material Design : https://docs.flutter.dev/ui/design/material
 - **TDD par défaut** : Écrire les tests avant le code (test unitaire → code → test widget → refactor)
-- Quand l'utilisateur commence par "Demande :", traduire la demande en US/EPIC dans `_bmad-output/planning-artifacts/user-stories.md`, écrire les tests unitaires et d'intégration, puis implémenter
+- Quand l'utilisateur commence par "Demande :", traduire la demande en US/EPIC dans `_bmad-output/planning-artifacts/user-stories.md`, écrire les tests unitaires, widget et d'intégration, puis implémenter
 
 ## User Stories
 

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show Platform;
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
 import '../antology_theme.dart';
 import '../widgets/category_food_selector.dart';
+import 'add_colony_screen.dart';
 
 class ColonyDetailScreen extends StatefulWidget {
   final Colony colony;
@@ -17,36 +24,84 @@ class ColonyDetailScreen extends StatefulWidget {
 
 class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   void _refresh() => setState(() {});
+  Colony get colony => widget.storage.colonies.firstWhere((c) => c.id == widget.colony.id, orElse: () => widget.colony);
+
+  Uint8List _decodeBase64Image(String base64String) {
+    try {
+      if (base64String.startsWith('data:')) {
+        final parts = base64String.split(',');
+        if (parts.length >= 2) {
+          return base64Decode(parts[1]);
+        }
+      }
+      return base64Decode(base64String);
+    } catch (e) {
+      debugPrint('Error decoding image: $e');
+      return Uint8List(0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final colonyId = widget.colony.id;
+    final colony = widget.storage.colonies.where((c) => c.id == colonyId).firstOrNull;
+    if (colony == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Colonie')),
+        body: const Center(child: Text('Colonie non trouvée')),
+      );
+    }
     final colonyEvents = widget.storage.feedingEvents.where((e) => e.colonyId == widget.colony.id).toList()..sort((a, b) => b.fedAt.compareTo(a.fedAt));
     final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == widget.colony.id).toList();
     final allCats = getAllCategories(widget.storage.customCategories);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.colony.name),
+        title: Text(colony.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _editColony(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteConfirmation(context),
+            onPressed: () => _showDeleteConfirmation(context, widget.colony),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _buildPhotoSection(),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.colony.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text(widget.colony.species, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                  Text(colony.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(colony.species, style: const TextStyle(fontSize: 16, color: Colors.grey)),
                   const SizedBox(height: 8),
-                  Text('Créée le: ${widget.colony.createdAt.day}/${widget.colony.createdAt.month}/${widget.colony.createdAt.year}'),
+                  Text('Créée le: ${colony.createdAt.day}/${colony.createdAt.month}/${colony.createdAt.year}'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Population', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('${colony.population}', style: const TextStyle(fontSize: 24, color: AntologyColors.forestGreen)),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -62,43 +117,33 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Nourrissage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ElevatedButton.icon(
-                        onPressed: () => _showAddFeeding(context),
+                      IconButton(
                         icon: const Icon(Icons.add),
-                        label: const Text('Enregistrer'),
+                        onPressed: () => _showAddFeedingDialog(context),
                       ),
                     ],
                   ),
+                  if (colonyEvents.isNotEmpty) ...[
+                    ...colonyEvents.take(10).map((e) => Card(
+                      child: ListTile(
+                        title: Text(e.foodType),
+                        subtitle: Text('${e.fedAt.day}/${e.fedAt.month}/${e.fedAt.year}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ...List.generate(e.rating ?? 0, (i) => const Icon(Icons.restaurant_menu, size: 16, color: AntologyColors.terracotta)),
+                            IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _showEditFeedingDialog(context, e)),
+                            IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.red), onPressed: () => _showDeleteFeeding(context, e)),
+                          ],
+                        ),
+                      ),
+                    )),
+                  ] else
+                    const Text('Aucun nourrissage', style: TextStyle(color: Colors.grey)),
                 ],
               ),
             ),
           ),
-          if (colonyEvents.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text('Nourrissages récents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ...colonyEvents.take(10).map((e) => Card(
-              child: ListTile(
-                title: Text(e.foodType),
-                subtitle: Row(
-                  children: [
-                    Text('${e.fedAt.day}/${e.fedAt.month}/${e.fedAt.year}'),
-                    if (e.rating != null) ...[
-                      const SizedBox(width: 8),
-                      ...List.generate(e.rating!, (_) => const Icon(Icons.restaurant_menu, size: 18, color: Colors.orange)),
-                    ],
-                  ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _showEditFeeding(context, e)),
-                    IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.red), onPressed: () => _showDeleteFeeding(context, e)),
-                  ],
-                ),
-              ),
-            )),
-          ],
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -109,11 +154,11 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Préférences alimentaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text('Préférences', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
+                            icon: const Icon(Icons.add),
                             onPressed: () => _showAddCategory(context),
                             tooltip: 'Ajouter une catégorie',
                           ),
@@ -145,30 +190,21 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                           ? [const ListTile(title: Text('Aucun aliment', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)))]
                           : cat.foods.map((f) {
                               final pref = colonyPrefs.where((p) => p.foodType == f).firstOrNull;
-                              final isCustomFood = widget.storage.customFoods.any((food) => food.toLowerCase() == f.toLowerCase());
+                              Color chipColor = Colors.grey;
+                              if (pref != null) {
+                                chipColor = pref.status == FoodStatus.accepted
+                                    ? Colors.green
+                                    : pref.status == FoodStatus.rejected ? Colors.red : Colors.grey;
+                              }
                               return ListTile(
                                 title: Text(f),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isCustomFood)
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                                        onPressed: () => _showDeleteFood(context, f),
-                                        tooltip: 'Supprimer l\'aliment',
-                                      ),
-                                    GestureDetector(
-                                      onTap: () => _togglePref(context, f, pref?.status),
-                                      child: Chip(
-                                        label: Text(pref?.status?.name == 'accepted' ? 'Accepté' : pref?.status?.name == 'rejected' ? 'Refusé' : 'Non testé'),
-                                        backgroundColor: pref?.status == FoodStatus.accepted
-                                            ? Colors.green.shade100
-                                            : pref?.status == FoodStatus.rejected
-                                                ? Colors.red.shade100
-                                                : Colors.grey.shade200,
-                                      ),
-                                    ),
-                                  ],
+                                trailing: GestureDetector(
+                                  onTap: () => _toggleFoodPreference(context, f),
+                                  child: Chip(
+                                    label: Text(pref?.status.name ?? 'Non testé'),
+                                    backgroundColor: chipColor.withAlpha(51),
+                                    labelStyle: TextStyle(color: chipColor),
+                                  ),
                                 ),
                               );
                             }).toList(),
@@ -183,12 +219,90 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
+  Widget _buildPhotoSection() {
+    final colony = this.colony;
+    final photos = colony.photos;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Photos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.add_a_photo),
+                  onPressed: _showPhotoOptions,
+                ),
+              ],
+            ),
+            if (photos.isEmpty)
+              const Center(child: Text('Aucune photo', style: TextStyle(color: Colors.grey)))
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: photos.length,
+                itemBuilder: (context, index) {
+                  final path = photos[index];
+                  final isFeatured = colony.featuredPhoto == path;
+                  return GestureDetector(
+                    onTap: () => _showPhotoViewer(path, index),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _decodeBase64Image(path).isEmpty
+                              ? Container(color: Colors.grey[300], child: const Icon(Icons.image, color: Colors.grey))
+                              : Image.memory(
+                                  _decodeBase64Image(path),
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true,
+                                  errorBuilder: (_, __, ___) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                                ),
+                        ),
+                        if (isFeatured)
+                          const Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Icon(Icons.star, color: Colors.amber, size: 20),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _editColony(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddColonyScreen(storage: widget.storage, colony: widget.colony)),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, Colony colony) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer ?'),
-        content: Text('Supprimer "${widget.colony.name}" ?'),
+        content: Text('Supprimer "${colony.name}" ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           ElevatedButton(
@@ -210,7 +324,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer ?'),
-        content: Text('Supprimer ce nourrissage de "${event.foodType}" ?'),
+        content: const Text('Supprimer ce nourrissage ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           ElevatedButton(
@@ -227,95 +341,10 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     );
   }
 
-  void _showEditFeeding(BuildContext context, FeedingEvent event) {
-    String? selectedFood = event.foodType;
-    final quantityController = TextEditingController(text: event.quantity);
+  void _showAddFeedingDialog(BuildContext context) {
     final allCats = getAllCategories(widget.storage.customCategories);
-    DateTime selectedDate = event.fedAt;
-    int? selectedRating = event.rating;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Modifier nourrissage'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              CategoryFoodSelector(
-                categories: allCats,
-                customFoods: widget.storage.customFoods,
-                onSelected: (category, food) => selectedFood = food,
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                subtitle: Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setDialogState(() => selectedDate = picked);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final rating = index + 1;
-                  return GestureDetector(
-                    onTap: () => setDialogState(() => selectedRating = rating),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.restaurant_menu,
-                        size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
-                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedFood == null) return;
-                widget.storage.updateFeedingEvent(FeedingEvent(
-                  id: event.id,
-                  colonyId: event.colonyId,
-                  foodType: selectedFood!,
-                  quantity: quantityController.text.isEmpty ? null : quantityController.text,
-                  fedAt: selectedDate,
-                  rating: selectedRating,
-                ));
-                Navigator.pop(ctx);
-                _refresh();
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddFeeding(BuildContext context) {
     String? selectedFood;
     final quantityController = TextEditingController();
-    final allCats = getAllCategories(widget.storage.customCategories);
     DateTime selectedDate = DateTime.now();
     int? selectedRating;
 
@@ -323,7 +352,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Enregistrer nourrissage'),
+          title: const Text('Ajouter un nourritsage'),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               CategoryFoodSelector(
@@ -397,6 +426,91 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     );
   }
 
+  void _showEditFeedingDialog(BuildContext context, FeedingEvent event) {
+    final allCats = getAllCategories(widget.storage.customCategories);
+    String selectedFood = event.foodType;
+    final quantityController = TextEditingController(text: event.quantity);
+    DateTime selectedDate = event.fedAt;
+    int? selectedRating = event.rating;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Modifier nourrissage'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              CategoryFoodSelector(
+                categories: allCats,
+                customFoods: widget.storage.customFoods,
+                onSelected: (category, food) => selectedFood = food,
+              ),
+              const SizedBox(height: 16),
+              TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Date'),
+                subtitle: Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: ctx,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setDialogState(() => selectedDate = picked);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final rating = index + 1;
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedRating = rating),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.restaurant_menu,
+                        size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
+                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () {
+                if (selectedFood == null) return;
+                widget.storage.updateFeedingEvent(FeedingEvent(
+                  id: event.id,
+                  colonyId: event.colonyId,
+                  foodType: selectedFood,
+                  quantity: quantityController.text.isEmpty ? null : quantityController.text,
+                  fedAt: selectedDate,
+                  rating: selectedRating,
+                ));
+                Navigator.pop(ctx);
+                _refresh();
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddCategory(BuildContext context) {
     final controller = TextEditingController();
     showDialog(
@@ -429,22 +543,21 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   }
 
   void _showAddFood(BuildContext context) {
-    final controller = TextEditingController();
-    String? selectedCategory;
     final allCats = getAllCategories(widget.storage.customCategories);
-
+    String? selectedCategory;
+    final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Ajouter un aliment'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: controller, decoration: const InputDecoration(labelText: 'Nom de l\'aliment')),
-          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            decoration: const InputDecoration(labelText: 'Catégorie (optionnel)'),
+            decoration: const InputDecoration(labelText: 'Catégorie'),
             items: allCats.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))).toList(),
             onChanged: (v) => selectedCategory = v,
           ),
+          const SizedBox(height: 16),
+          TextField(controller: controller, decoration: const InputDecoration(labelText: 'Nom de l\'aliment')),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
@@ -462,30 +575,17 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     );
   }
 
-  void _togglePref(BuildContext context, String food, FoodStatus? current) async {
-    final FoodStatus newStatus;
-    if (current == null || current == FoodStatus.unknown) {
-      newStatus = FoodStatus.accepted;
-    } else if (current == FoodStatus.accepted) {
-      newStatus = FoodStatus.rejected;
-    } else {
-      newStatus = FoodStatus.unknown;
-    }
-    await widget.storage.addFoodPreference(FoodPreference(colonyId: widget.colony.id, foodType: food, status: newStatus));
-    _refresh();
-  }
-
   void _showDeleteCategory(BuildContext context, String categoryName) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer la catégorie ?'),
-        content: Text('Supprimer "$categoryName" et tous ses aliments ?'),
+        content: Text('Supprimer "$categoryName" ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           ElevatedButton(
-            onPressed: () async {
-              await widget.storage.deleteCustomCategory(categoryName);
+            onPressed: () {
+              widget.storage.deleteCustomCategory(categoryName);
               Navigator.pop(ctx);
               _refresh();
             },
@@ -497,24 +597,145 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     );
   }
 
-  void _showDeleteFood(BuildContext context, String foodName) {
+  Future<void> _toggleFoodPreference(BuildContext context, String food) async {
+    final colony = this.colony;
+    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == colony.id);
+    final pref = colonyPrefs.where((p) => p.foodType == food).firstOrNull;
+    FoodStatus newStatus;
+    if (pref == null || pref.status == FoodStatus.unknown) {
+      newStatus = FoodStatus.accepted;
+    } else if (pref.status == FoodStatus.accepted) {
+      newStatus = FoodStatus.rejected;
+    } else {
+      newStatus = FoodStatus.unknown;
+    }
+    await widget.storage.addFoodPreference(FoodPreference(colonyId: colony.id, foodType: food, status: newStatus));
+    _refresh();
+  }
+
+  Future<void> _addPhoto(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 80);
+    if (picked != null) {
+      final isMobile = !Platform.isWindows && !Platform.isMacOS;
+      if (isMobile) {
+        final croppedFile = await ImageCropper().cropImage(
+          sourcePath: picked.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Rogner en carré',
+              toolbarColor: AntologyColors.forestGreen,
+              toolbarWidgetColor: Colors.white,
+              backgroundColor: Colors.black,
+              lockAspectRatio: true,
+            ),
+            IOSUiSettings(
+              title: 'Rogner en carré',
+              aspectRatioLockEnabled: true,
+            ),
+          ],
+        );
+        if (croppedFile != null) {
+          final bytes = await croppedFile.readAsBytes();
+          final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+          await widget.storage.addPhotoToColony(widget.colony.id, base64Image);
+          _refresh();
+        }
+      } else {
+        final bytes = await picked.readAsBytes();
+        final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        await widget.storage.addPhotoToColony(widget.colony.id, base64Image);
+        _refresh();
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _addPhoto(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Prendre une photo'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _addPhoto(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPhotoViewer(String photoPath, int index) {
+    final currentColony = widget.storage.colonies.firstWhere((c) => c.id == widget.colony.id, orElse: () => widget.colony);
+    final currentFeatured = currentColony.featuredPhoto;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer l\'aliment ?'),
-        content: Text('Supprimer "$foodName" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              await widget.storage.deleteCustomFood(foodName);
-              Navigator.pop(ctx);
-              _refresh();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
-            child: const Text('Supprimer'),
+      builder: (ctx) => Dialog(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: _decodeBase64Image(photoPath).isEmpty
+                    ? Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image, size: 48)))
+                    : Image.memory(_decodeBase64Image(photoPath), fit: BoxFit.cover),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (currentFeatured != photoPath)
+                      TextButton.icon(
+                        icon: const Icon(Icons.star),
+                        label: const Text('En avant'),
+                        onPressed: () {
+                          widget.storage.setFeaturedPhoto(currentColony.id, photoPath);
+                          Navigator.pop(ctx);
+                          _refresh();
+                        },
+                      )
+                    else
+                      TextButton.icon(
+                        icon: const Icon(Icons.star_border),
+                        label: const Text('Retirer'),
+                        onPressed: () {
+                          widget.storage.setFeaturedPhoto(currentColony.id, null);
+                          Navigator.pop(ctx);
+                          _refresh();
+                        },
+                      ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                      onPressed: () {
+                        widget.storage.removePhotoFromColony(currentColony.id, photoPath);
+                        Navigator.pop(ctx);
+                        _refresh();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

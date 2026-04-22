@@ -116,8 +116,8 @@ testWidgets('delete colony with confirmation', (tester) async {
         await tester.tap(find.text('Enregistrer'));
         await tester.pumpAndSettle();
 
-        final dropdownFinder = find.byType(DropdownButtonFormField<String>);
-        expect(dropdownFinder, findsOneWidget);
+        final dropdownFinders = find.byType(DropdownButtonFormField<String>);
+        expect(dropdownFinders, findsWidgets);
 
         await tester.tap(find.text('Annuler'));
         await tester.pumpAndSettle();
@@ -398,6 +398,57 @@ testWidgets('delete custom food', (tester) async {
         await tester.pumpAndSettle();
 
         expect(find.text('Paramètres'), findsWidgets);
+      });
+    });
+
+    group('Colony Photos', () {
+      testWidgets('add photo to colony', (tester) async {
+        final storage = StorageService();
+        await storage.init();
+
+        await tester.pumpWidget(AntologyApp(storage: storage));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Athéna'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Photos'), findsOneWidget);
+        expect(find.text('Aucune photo'), findsOneWidget);
+      });
+
+      testWidgets('display featured photo in colony list', (tester) async {
+        final storage = StorageService();
+        await storage.init();
+
+        final colony = storage.colonies.first;
+        await storage.addPhotoToColony(colony.id, 'data:image/jpeg;base64,/9j/4AAQSkZJRg==');
+        await storage.setFeaturedPhoto(colony.id, 'data:image/jpeg;base64,/9j/4AAQSkZJRg==');
+
+        await tester.pumpWidget(AntologyApp(storage: storage));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Athéna'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.add_a_photo));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('crop dialog appears in bottom sheet', (tester) async {
+        final storage = StorageService();
+        await storage.init();
+
+        await tester.pumpWidget(AntologyApp(storage: storage));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Athéna'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.add_a_photo));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Choisir dans la galerie'), findsOneWidget);
+        expect(find.text('Prendre une photo'), findsOneWidget);
       });
     });
   });

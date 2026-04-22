@@ -32,17 +32,41 @@ class StorageService {
     AppConfig.debugMode = value;
   }
 
+  bool _isValidBase64Image(String? str) {
+    if (str == null || str.isEmpty) return false;
+    if (!str.startsWith('data:')) return false;
+    if (!str.contains(',')) return false;
+    final parts = str.split(',');
+    if (parts.length < 2) return false;
+    final data = parts[1];
+    if (data.contains('[') || data.contains('{')) return false;
+    try {
+      base64Decode(data);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> _loadData() async {
     final coloniesJson = _prefs.getString('colonies');
     if (coloniesJson != null) {
       final list = jsonDecode(coloniesJson) as List;
-      colonies = list.map((e) => Colony(
-        id: e['id'],
-        name: e['name'],
-        species: e['species'],
-        createdAt: DateTime.parse(e['createdAt']),
-        population: e['population'] ?? 0,
-      )).toList();
+      colonies = list.map((e) {
+        final rawPhotos = (e['photos'] as List?)?.cast<String>() ?? [];
+        final validPhotos = rawPhotos.where(_isValidBase64Image).toList();
+        final rawFeatured = e['featuredPhoto'];
+        final validFeatured = _isValidBase64Image(rawFeatured) ? rawFeatured : null;
+        return Colony(
+          id: e['id'],
+          name: e['name'],
+          species: e['species'],
+          createdAt: DateTime.parse(e['createdAt']),
+          population: e['population'] ?? 0,
+          photos: validPhotos,
+          featuredPhoto: validFeatured,
+        );
+      }).toList();
     }
 
     final eventsJson = _prefs.getString('feedingEvents');
@@ -82,7 +106,15 @@ class StorageService {
   }
 
   Future<void> _saveColonies() async {
-    final json = jsonEncode(colonies.map((c) => {'id': c.id, 'name': c.name, 'species': c.species, 'createdAt': c.createdAt.toIso8601String(), 'population': c.population}).toList());
+    final json = jsonEncode(colonies.map((c) => {
+      'id': c.id,
+      'name': c.name,
+      'species': c.species,
+      'createdAt': c.createdAt.toIso8601String(),
+      'population': c.population,
+      'photos': c.photos,
+      'featuredPhoto': c.featuredPhoto,
+    }).toList());
     await _prefs.setString('colonies', json);
   }
 
@@ -114,6 +146,72 @@ class StorageService {
     await _saveColonies();
     await _saveFeedingEvents();
     await _saveFoodPreferences();
+  }
+
+  Future<void> updateColony(Colony updatedColony) async {
+    final index = colonies.indexWhere((c) => c.id == updatedColony.id);
+    if (index != -1) {
+      colonies[index] = updatedColony;
+      await _saveColonies();
+    }
+  }
+
+  Future<void> addPhotoToColony(String colonyId, String photoPath) async {
+    final index = colonies.indexWhere((c) => c.id == colonyId);
+    if (index != -1) {
+      final colony = colonies[index];
+      final newPhotos = List<String>.from(colony.photos)..add(photoPath);
+      String? newFeatured = colony.featuredPhoto;
+      if (newFeatured == null && newPhotos.isNotEmpty) {
+        newFeatured = photoPath;
+      }
+      colonies[index] = Colony(
+        id: colony.id,
+        name: colony.name,
+        species: colony.species,
+        createdAt: colony.createdAt,
+        population: colony.population,
+        photos: newPhotos,
+        featuredPhoto: newFeatured,
+      );
+      await _saveColonies();
+    }
+  }
+
+  Future<void> removePhotoFromColony(String colonyId, String photoPath) async {
+    final index = colonies.indexWhere((c) => c.id == colonyId);
+    if (index != -1) {
+      final colony = colonies[index];
+      final newPhotos = List<String>.from(colony.photos)..remove(photoPath);
+      String? newFeatured = colony.featuredPhoto == photoPath ? (newPhotos.isNotEmpty ? newPhotos.first : null) : colony.featuredPhoto;
+      colonies[index] = Colony(
+        id: colony.id,
+        name: colony.name,
+        species: colony.species,
+        createdAt: colony.createdAt,
+        population: colony.population,
+        photos: newPhotos,
+        featuredPhoto: newFeatured,
+      );
+      await _saveColonies();
+    }
+  }
+
+  Future<void> setFeaturedPhoto(String colonyId, String? photoPath) async {
+    final index = colonies.indexWhere((c) => c.id == colonyId);
+    if (index != -1) {
+      final colony = colonies[index];
+      colonies[index] = Colony(
+        id: colony.id,
+        name: colony.name,
+        species: colony.species,
+        createdAt: colony.createdAt,
+        population: colony.population,
+        photos: colony.photos,
+        featuredPhoto: photoPath,
+      );
+      await _saveColonies();
+    }
   }
 
   Future<void> addFeedingEvent(FeedingEvent e) async {

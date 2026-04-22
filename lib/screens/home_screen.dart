@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
@@ -20,6 +23,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _loadData() {
     setState(() {});
+  }
+
+  Uint8List _decodeBase64Image(String base64String) {
+    try {
+      if (base64String.startsWith('data:')) {
+        final parts = base64String.split(',');
+        if (parts.length >= 2) {
+          return base64Decode(parts[1]);
+        }
+      }
+      return base64Decode(base64String);
+    } catch (e) {
+      debugPrint('Error decoding image: $e');
+      return Uint8List(0);
+    }
   }
 
   @override
@@ -49,10 +67,35 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const Text('Mes Colonies', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
-                ...colonies.map((c) => Card(child: ListTile(leading: CircleAvatar(backgroundColor: AntologyColors.tealLight, child: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24)), title: Text(c.name), subtitle: Text(c.species), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData())))),
+                ...colonies.map((c) => _buildColonyCard(c)),
               ],
             ),
       floatingActionButton: FloatingActionButton(onPressed: _showAddColony, child: const Icon(Icons.add)),
+    );
+  }
+
+  Widget _buildColonyCard(Colony c) {
+    final featuredPhoto = c.featuredPhoto;
+    final bytes = featuredPhoto != null && featuredPhoto.isNotEmpty ? _decodeBase64Image(featuredPhoto) : Uint8List(0);
+    return Card(
+      child: ListTile(
+        leading: featuredPhoto != null && featuredPhoto.isNotEmpty && bytes.isNotEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.memory(
+                  bytes,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => CircleAvatar(backgroundColor: AntologyColors.tealLight, child: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24)),
+                ),
+              )
+            : CircleAvatar(backgroundColor: AntologyColors.tealLight, child: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24)),
+        title: Text(c.name),
+        subtitle: Text(c.species),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData()),
+      ),
     );
   }
 
@@ -67,20 +110,22 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: colonies.length,
               itemBuilder: (ctx, i) {
                 final c = colonies[i];
-                return Card(
-                  child: ListTile(
-                    title: Text(c.name),
-                    subtitle: Text(c.species),
-                    trailing: PopupMenuButton(
-                      itemBuilder: (ctx) => [const PopupMenuItem(value: 'delete', child: Text('Supprimer'))],
-                      onSelected: (v) { if (v == 'delete') _deleteColony(c); },
-                    ),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData()),
-                  ),
-                );
+                return _buildColonyCard(c);
               },
             ),
       floatingActionButton: FloatingActionButton(onPressed: _showAddColony, child: const Icon(Icons.add)),
+    );
+  }
+
+  ListTile _buildColonyListItem(Colony c) {
+    return ListTile(
+      title: Text(c.name),
+      subtitle: Text(c.species),
+      trailing: PopupMenuButton(
+        itemBuilder: (ctx) => [const PopupMenuItem(value: 'delete', child: Text('Supprimer'))],
+        onSelected: (v) { if (v == 'delete') _deleteColony(c); },
+      ),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData()),
     );
   }
 
