@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart' show Platform;
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'dart:convert';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart'; // For ImageSource, ImagePicker
+import 'package:image_cropper/image_cropper.dart'; // For ImageCropper, UiSettings classes, CropAspectRatio, etc.
+import 'dart:convert'; // For base64Decode, base64Encode
+import 'dart:io'; // For Platform.isAndroid, Platform.isIOS (for non-web mobile check)
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
@@ -625,33 +624,34 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 80);
     if (picked != null) {
-      final isMobile = !Platform.isWindows && !Platform.isMacOS;
-      if (isMobile) {
-        final croppedFile = await ImageCropper().cropImage(
-          sourcePath: picked.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Rogner en carré',
-              toolbarColor: AntologyColors.forestGreen,
-              toolbarWidgetColor: Colors.white,
-              backgroundColor: Colors.black,
-              lockAspectRatio: true,
-            ),
-            IOSUiSettings(
-              title: 'Rogner en carré',
-              aspectRatioLockEnabled: true,
-            ),
-          ],
-        );
-        if (croppedFile != null) {
-          final bytes = await croppedFile.readAsBytes();
-          final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-          await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
-          _refresh();
-        }
-      } else {
-        final bytes = await picked.readAsBytes();
+      final List<PlatformUiSettings> uiSettings = [
+        AndroidUiSettings(
+          toolbarTitle: 'Rogner en carré',
+          toolbarColor: AntologyColors.forestGreen,
+          toolbarWidgetColor: Colors.white,
+          backgroundColor: Colors.black,
+          lockAspectRatio: true,
+          showCropGrid: true,
+          hideBottomControls: false,
+          initAspectRatio: CropAspectRatioPreset.square,
+          aspectRatioPresets: [CropAspectRatioPreset.square, CropAspectRatioPreset.ratio3x2, CropAspectRatioPreset.original, CropAspectRatioPreset.ratio4x3, CropAspectRatioPreset.ratio16x9],
+        ),
+        IOSUiSettings(
+          title: 'Rogner en carré',
+          aspectRatioLockEnabled: true,
+          rotateButtonsHidden: false,
+          aspectRatioPresets: [CropAspectRatioPreset.square, CropAspectRatioPreset.ratio3x2, CropAspectRatioPreset.original, CropAspectRatioPreset.ratio4x3, CropAspectRatioPreset.ratio16x9],
+        ),
+          WebUiSettings(context: context),
+      ];
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: uiSettings,
+      );
+      if (croppedFile != null) {
+        final bytes = await croppedFile.readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
         _refresh();
