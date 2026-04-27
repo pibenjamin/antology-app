@@ -621,42 +621,95 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   }
 
   Future<void> _addPhoto(ImageSource source) async {
+    debugPrint('[_addPhoto] Starting...');
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 80);
     if (picked != null) {
-      final List<PlatformUiSettings> uiSettings = [
-        AndroidUiSettings(
-          toolbarTitle: 'Rogner en carré',
-          toolbarColor: AntologyColors.forestGreen,
-          toolbarWidgetColor: Colors.white,
-          backgroundColor: Colors.black,
-          lockAspectRatio: true,
-          showCropGrid: true,
-          hideBottomControls: false,
-          initAspectRatio: CropAspectRatioPreset.square,
-          aspectRatioPresets: [CropAspectRatioPreset.square, CropAspectRatioPreset.ratio3x2, CropAspectRatioPreset.original, CropAspectRatioPreset.ratio4x3, CropAspectRatioPreset.ratio16x9],
-        ),
-        IOSUiSettings(
-          title: 'Rogner en carré',
-          aspectRatioLockEnabled: true,
-          rotateButtonsHidden: false,
-          aspectRatioPresets: [CropAspectRatioPreset.square, CropAspectRatioPreset.ratio3x2, CropAspectRatioPreset.original, CropAspectRatioPreset.ratio4x3, CropAspectRatioPreset.ratio16x9],
-        ),
-          WebUiSettings(context: context),
-      ];
+      debugPrint('[_addPhoto] Image picked: ${picked.path}');
+      CroppedFile? croppedFile;
 
-      final croppedFile = await ImageCropper().cropImage(
-        sourcePath: picked.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-        uiSettings: uiSettings,
-      );
+      try {
+        if (kIsWeb) {
+          debugPrint('[_addPhoto] Cropping for Web...');
+          croppedFile = await ImageCropper().cropImage(
+            sourcePath: picked.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+            uiSettings: [
+              WebUiSettings(context: context),
+            ],
+          );
+          debugPrint('[_addPhoto] Web cropping result: ${croppedFile?.path}');
+        } else if (Platform.isAndroid || Platform.isIOS) {
+          debugPrint('[_addPhoto] Cropping for Android/iOS...');
+          croppedFile = await ImageCropper().cropImage(
+            sourcePath: picked.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+            uiSettings: [
+              AndroidUiSettings(
+                toolbarTitle: 'Rogner en carré',
+                toolbarColor: AntologyColors.forestGreen,
+                toolbarWidgetColor: Colors.white,
+                backgroundColor: Colors.black,
+                lockAspectRatio: true,
+                showCropGrid: true,
+                hideBottomControls: false,
+                initAspectRatio: CropAspectRatioPreset.square,
+                aspectRatioPresets: [
+                  CropAspectRatioPreset.square,
+                  CropAspectRatioPreset.ratio3x2,
+                  CropAspectRatioPreset.original,
+                  CropAspectRatioPreset.ratio4x3,
+                  CropAspectRatioPreset.ratio16x9
+                ],
+              ),
+              IOSUiSettings(
+                title: 'Rogner en carré',
+                aspectRatioLockEnabled: true,
+                rotateButtonsHidden: false,
+                aspectRatioPresets: [
+                  CropAspectRatioPreset.square,
+                  CropAspectRatioPreset.ratio3x2,
+                  CropAspectRatioPreset.original,
+                  CropAspectRatioPreset.ratio4x3,
+                  CropAspectRatioPreset.ratio16x9
+                ],
+              ),
+            ],
+          );
+          debugPrint('[_addPhoto] Mobile cropping result: ${croppedFile?.path}');
+        }
+      } catch (e) {
+        debugPrint('[_addPhoto] Error during cropping: $e');
+        // Fallback to original image if cropping fails
+        final bytes = await picked.readAsBytes();
+        final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
+        _refresh();
+        return; // Exit after adding original image
+      }
+
       if (croppedFile != null) {
+        debugPrint('[_addPhoto] Cropped file not null, processing...');
         final bytes = await croppedFile.readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
         _refresh();
+        debugPrint('[_addPhoto] Photo added and refreshed.');
+      } else if (!kIsWeb && !(Platform.isAndroid || Platform.isIOS)) {
+        debugPrint('[_addPhoto] Platform not supported by cropper, adding original image...');
+        // For platforms not supported by image_cropper, add the image directly
+        final bytes = await picked.readAsBytes();
+        final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
+        _refresh();
+        debugPrint('[_addPhoto] Original photo added and refreshed.');
+      } else {
+        debugPrint('[_addPhoto] Cropped file is null, and no fallback for this platform. Doing nothing.');
       }
+    } else {
+      debugPrint('[_addPhoto] No image picked.');
     }
+    debugPrint('[_addPhoto] Exiting.');
   }
 
   void _showPhotoOptions() {

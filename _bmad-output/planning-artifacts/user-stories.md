@@ -573,7 +573,8 @@ Feature: Paliers de population
 | EPIC 5 | Fermeture des Dialogs | ✅ Terminé |
 | EPIC 6 | Population des Colonies | ✅ Terminé |
 | EPIC 7 | Paliers de Population | ✅ Terminé |
-| EPIC 8 | Photos des Colonies | 🔄 En cours |
+| EPIC 8 | Photos des Colonies | ✅ Terminé |
+
 
 ---
 
@@ -675,9 +676,11 @@ Feature: Photo en avant
 **Notes Techniques :**
 
 - **Package :** `image_cropper` (version ^8.0.2)
-- **Configuration :**
-  - `uiSettings`: `AndroidUiSettings(lockAspectRatio: true)` et `IOSUiSettings(aspectRatioLockEnabled: true)`
+- **Configuration (Android/iOS/Web) :**
+  - `uiSettings`: `AndroidUiSettings(lockAspectRatio: true)`, `IOSUiSettings(aspectRatioLockEnabled: true)`, `WebUiSettings(context: context, ...)`
   - `aspectRatio`: `CropAspectRatio(ratioX: 1, ratioY: 1)`
+- **Limitation (Desktop)**: Pour les plateformes Desktop (Windows, macOS, Linux), l'image est ajoutée directement sans rognage car `image_cropper` ne fournit pas d'implémentation native pour ces plateformes.
+
 
 ```gherkin
 Feature: Rogner les photos
