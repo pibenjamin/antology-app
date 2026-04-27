@@ -3,6 +3,16 @@ class AppConfig {
   static String debugEmail = 'benjaminpiscart@gmail.com';
   static String debugPassword = 'welcome2HRSD2022!';
   static const List<int> populationTiers = [0, 5, 10, 15, 20, 30, 50, 100, 200, 500, 1000, 2000, 5000];
+
+  static String formatDateShort(DateTime date) {
+    const months = ['jan.', 'fév.', 'mar.', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  static String formatDateFull(DateTime date) {
+    const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 }
 
 enum Role { queen, worker, male, brood }

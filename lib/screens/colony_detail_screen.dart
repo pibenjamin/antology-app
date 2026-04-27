@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show Platform;
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'dart:convert';
@@ -13,10 +14,10 @@ import '../widgets/category_food_selector.dart';
 import 'add_colony_screen.dart';
 
 class ColonyDetailScreen extends StatefulWidget {
-  final Colony colony;
+  final String colonyId;
   final StorageService storage;
 
-  const ColonyDetailScreen({super.key, required this.colony, required this.storage});
+  const ColonyDetailScreen({super.key, required this.colonyId, required this.storage});
 
   @override
   State<ColonyDetailScreen> createState() => _ColonyDetailScreenState();
@@ -24,7 +25,8 @@ class ColonyDetailScreen extends StatefulWidget {
 
 class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   void _refresh() => setState(() {});
-  Colony get colony => widget.storage.colonies.firstWhere((c) => c.id == widget.colony.id, orElse: () => widget.colony);
+  String get colId => widget.colonyId;
+  Colony? get targetColony => widget.storage.colonies.where((c) => c.id == colId).firstOrNull;
 
   Uint8List _decodeBase64Image(String base64String) {
     try {
@@ -43,21 +45,25 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colonyId = widget.colony.id;
-    final colony = widget.storage.colonies.where((c) => c.id == colonyId).firstOrNull;
+    final colony = targetColony;
     if (colony == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Colonie')),
-        body: const Center(child: Text('Colonie non trouvée')),
+        appBar: AppBar(title: Text('Colonie ID: ${widget.colonyId}')),
+        body: Center(child: Text('Colonie non trouvée: ${widget.colonyId}')),
       );
     }
-    final colonyEvents = widget.storage.feedingEvents.where((e) => e.colonyId == widget.colony.id).toList()..sort((a, b) => b.fedAt.compareTo(a.fedAt));
-    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == widget.colony.id).toList();
+    final colonyEvents = widget.storage.feedingEvents.where((e) => e.colonyId == colony.id).toList()..sort((a, b) => b.fedAt.compareTo(a.fedAt));
+    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == colony.id).toList();
     final allCats = getAllCategories(widget.storage.customCategories);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(colony.name),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/home'),
+        ),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -65,7 +71,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteConfirmation(context, widget.colony),
+            onPressed: () => _showDeleteConfirmation(context, colony),
           ),
         ],
       ),
@@ -220,8 +226,9 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   }
 
   Widget _buildPhotoSection() {
-    final colony = this.colony;
-    final photos = colony.photos;
+    final c = targetColony;
+    if (c == null) return const SizedBox();
+    final photos = c.photos;
 
     return Card(
       child: Padding(
@@ -253,7 +260,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                 itemCount: photos.length,
                 itemBuilder: (context, index) {
                   final path = photos[index];
-                  final isFeatured = colony.featuredPhoto == path;
+                  final isFeatured = c.featuredPhoto == path;
                   return GestureDetector(
                     onTap: () => _showPhotoViewer(path, index),
                     child: Stack(
@@ -290,24 +297,24 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   void _editColony(BuildContext context) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AddColonyScreen(storage: widget.storage, colony: widget.colony)),
+      MaterialPageRoute(builder: (_) => AddColonyScreen(storage: widget.storage, colony: targetColony)),
     );
     if (mounted) {
       setState(() {});
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, Colony colony) {
+  void _showDeleteConfirmation(BuildContext context, Colony colonyToDelete) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer ?'),
-        content: Text('Supprimer "${colony.name}" ?'),
+        content: Text('Supprimer "${colonyToDelete.name}" ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           ElevatedButton(
             onPressed: () {
-              widget.storage.deleteColony(widget.colony.id);
+              widget.storage.deleteColony(targetColony!.id);
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
@@ -409,7 +416,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                 if (selectedFood == null) return;
                 widget.storage.addFeedingEvent(FeedingEvent(
                   id: widget.storage.generateId(),
-                  colonyId: widget.colony.id,
+                  colonyId: targetColony!.id,
                   foodType: selectedFood!,
                   quantity: quantityController.text.isEmpty ? null : quantityController.text,
                   fedAt: selectedDate,
@@ -598,8 +605,9 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   }
 
   Future<void> _toggleFoodPreference(BuildContext context, String food) async {
-    final colony = this.colony;
-    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == colony.id);
+    final c = targetColony;
+    if (c == null) return;
+    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == c.id);
     final pref = colonyPrefs.where((p) => p.foodType == food).firstOrNull;
     FoodStatus newStatus;
     if (pref == null || pref.status == FoodStatus.unknown) {
@@ -609,7 +617,7 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
     } else {
       newStatus = FoodStatus.unknown;
     }
-    await widget.storage.addFoodPreference(FoodPreference(colonyId: colony.id, foodType: food, status: newStatus));
+    await widget.storage.addFoodPreference(FoodPreference(colonyId: c.id, foodType: food, status: newStatus));
     _refresh();
   }
 
@@ -639,13 +647,13 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
         if (croppedFile != null) {
           final bytes = await croppedFile.readAsBytes();
           final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-          await widget.storage.addPhotoToColony(widget.colony.id, base64Image);
+          await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
           _refresh();
         }
       } else {
         final bytes = await picked.readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        await widget.storage.addPhotoToColony(widget.colony.id, base64Image);
+        await widget.storage.addPhotoToColony(targetColony!.id, base64Image);
         _refresh();
       }
     }
@@ -681,7 +689,8 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
   }
 
   void _showPhotoViewer(String photoPath, int index) {
-    final currentColony = widget.storage.colonies.firstWhere((c) => c.id == widget.colony.id, orElse: () => widget.colony);
+    final currentColony = targetColony;
+    if (currentColony == null) return;
     final currentFeatured = currentColony.featuredPhoto;
     showDialog(
       context: context,

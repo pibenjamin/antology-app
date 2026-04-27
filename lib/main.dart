@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'services/storage_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/colony_detail_screen.dart';
@@ -21,15 +22,32 @@ class AntologyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        GoRoute(
+          path: '/home',
+          builder: (context, state) => HomeScreen(storage: storage),
+        ),
+        GoRoute(
+          path: '/colony/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return ColonyDetailScreen(colonyId: id, storage: storage);
+          },
+        ),
+        GoRoute(
+          path: '/add-colony',
+          builder: (context, state) => AddColonyScreen(storage: storage),
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
       title: 'Antology',
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: true,
       theme: AntologyTheme.lightTheme,
-      home: HomeScreen(storage: storage),
-      routes: {
-        '/home': (context) => HomeScreen(storage: storage),
-        '/add-colony': (context) => AddColonyScreen(storage: storage),
-      },
+      routerConfig: router,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/models.dart';
@@ -5,6 +6,7 @@ import '../models/food_data.dart';
 
 class StorageService {
   late SharedPreferences _prefs;
+  final _uuid = const Uuid();
 
   List<Colony> colonies = [];
   List<Individual> individuals = [];
@@ -18,12 +20,23 @@ class StorageService {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     AppConfig.debugMode = _prefs.getBool('debugMode') ?? false;
+    await _prefs.remove('colonies');
+    await _prefs.remove('feedingEvents');
+    await _prefs.remove('foodPreferences');
     await _loadData();
     if (colonies.isEmpty) {
-      colonies.add(Colony(id: generateId(), name: 'Athéna', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
-      colonies.add(Colony(id: generateId(), name: 'Eclair', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1)));
-      colonies.add(Colony(id: generateId(), name: 'Mama', species: 'Lasius niger', createdAt: DateTime(2025, 6, 1)));
+      final athena = Colony(id: generateId(), name: 'Athéna', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1), population: 50);
+      final eclair = Colony(id: generateId(), name: 'Eclair', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1), population: 25);
+      final mama = Colony(id: generateId(), name: 'Mama', species: 'Lasius niger', createdAt: DateTime(2025, 6, 1), population: 6);
+      colonies.add(athena);
+      colonies.add(eclair);
+      colonies.add(mama);
       await _saveColonies();
+      feedingEvents.add(FeedingEvent(id: generateId(), colonyId: athena.id, foodType: 'Grillons', fedAt: DateTime(2025, 4, 14), rating: 4));
+      feedingEvents.add(FeedingEvent(id: generateId(), colonyId: athena.id, foodType: 'Graines de pavot', fedAt: DateTime(2025, 4, 15), rating: 3));
+      feedingEvents.add(FeedingEvent(id: generateId(), colonyId: eclair.id, foodType: 'Grillons', fedAt: DateTime(2025, 4, 12), rating: 5));
+      feedingEvents.add(FeedingEvent(id: generateId(), colonyId: mama.id, foodType: 'Sirop', fedAt: DateTime(2025, 4, 16), rating: 4));
+      await _saveFeedingEvents();
     }
   }
 
@@ -132,7 +145,7 @@ class StorageService {
     await _prefs.setString('foodPreferences', json);
   }
 
-  String generateId() => DateTime.now().millisecondsSinceEpoch.toString();
+  String generateId() => _uuid.v4();
 
   Future<void> addColony(Colony c) async {
     colonies.add(c);

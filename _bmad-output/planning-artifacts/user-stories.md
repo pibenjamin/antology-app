@@ -585,6 +585,22 @@ Feature: Paliers de population
 **je veux** ajouter des photos à ma colonie,
 **afin de** mieux identifier visuellement mes colonies.
 
+**Critères d'Acceptation (CA) :**
+
+- **Formats supportés :** L'application doit accepter les images aux formats JPEG et PNG.
+- **Taille maximale :** Limiter la taille des images à 5 Mo pour optimiser le stockage local.
+- **Compression :** Compresser automatiquement les images (qualité 80%) avant le stockage pour éviter une surcharge de `SharedPreferences`.
+- **Interface :** Afficher un indicateur de chargement (spinner) pendant la compression et l'enregistrement.
+- **Feedback :** Afficher un message de succès ou d'erreur après l'ajout.
+
+**Notes Techniques :**
+
+- **Package :** `image_picker` (version ^1.1.2)
+- **Stockage :** Base64 dans `SharedPreferences` (clé `photos` du tableau `Colony`)
+- **API Flutter :**
+  - `ImagePicker().pickImage(source: ImageSource.gallery)`
+  - `ImagePicker().pickImage(source: ImageSource.camera)`
+
 ```gherkin
 Feature: Photos des colonies
 
@@ -614,6 +630,17 @@ Feature: Photos des colonies
 **je veux** choisir une photo en avant,
 **afin qu'elle** s'affiche dans la liste des colonies.
 
+**Critères d'Acceptation (CA) :**
+
+- **Unique :** Une seule photo en avant par colonie à la fois.
+- **Mise à jour immédiate :** La photo en avant doit s'afficher instantanément dans la liste des colonies (HomeScreen) après la sélection.
+- **Interface :** Bouton "En avant" (étoile) clairement visible dans la visionneuse de photos.
+
+**Notes Techniques :**
+
+- **Champ :** `featuredPhoto` dans le modèle `Colony`
+- **Mise à jour :** Appel à `StorageService.setFeaturedPhoto(colonyId, photoPath)` qui met à jour le champ `featuredPhoto`.
+
 ```gherkin
 Feature: Photo en avant
 
@@ -637,6 +664,20 @@ Feature: Photo en avant
 **En tant que** propriétaire de fourmis,
 **je veux** rogner mes photos au format carré,
 **afin d'avoir** une affiche uniforme.
+
+**Critères d'Acceptation (CA) :**
+
+- **Format forcé :** Le rognage doit être verrouillé au format carré (1:1).
+- **Aperçu :** L'utilisateur doit voir un aperçu en temps réel avant de valider le rognage.
+- **Confirmation :** Boutons "Annuler" et "Valider" clairement identifiés.
+- **UX :** `toolbarTitle="Rogner en carré"` dans la toolbar.
+
+**Notes Techniques :**
+
+- **Package :** `image_cropper` (version ^8.0.2)
+- **Configuration :**
+  - `uiSettings`: `AndroidUiSettings(lockAspectRatio: true)` et `IOSUiSettings(aspectRatioLockEnabled: true)`
+  - `aspectRatio`: `CropAspectRatio(ratioX: 1, ratioY: 1)`
 
 ```gherkin
 Feature: Rogner les photos

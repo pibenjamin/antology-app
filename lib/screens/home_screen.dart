@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../models/models.dart';
@@ -94,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(c.name),
         subtitle: Text(c.species),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData()),
+        onTap: () => context.go('/colony/${c.id}'),
       ),
     );
   }
@@ -125,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (ctx) => [const PopupMenuItem(value: 'delete', child: Text('Supprimer'))],
         onSelected: (v) { if (v == 'delete') _deleteColony(c); },
       ),
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ColonyDetailScreen(colony: c, storage: widget.storage))).then((_) => _loadData()),
+      onTap: () => context.go('/colony/${c.id}'),
     );
   }
 
@@ -147,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showAddColony() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => AddColonyScreen(storage: widget.storage))).then((_) => _loadData());
+    context.go('/add-colony');
   }
 
   void _deleteColony(Colony c) {
