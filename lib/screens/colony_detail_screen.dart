@@ -8,6 +8,8 @@ import 'dart:io'; // For Platform.isAndroid, Platform.isIOS (for non-web mobile 
 import '../models/models.dart';
 import '../models/food_data.dart';
 import '../services/storage_service.dart';
+import '../services/timeline_service.dart';
+import '../widgets/timeline_widget.dart';
 import '../antology_theme.dart';
 import '../widgets/category_food_selector.dart';
 import 'add_colony_screen.dart';
@@ -106,6 +108,30 @@ class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
                       const Text('Population', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       Text('${colony.population}', style: const TextStyle(fontSize: 24, color: AntologyColors.forestGreen)),
                     ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Évolution', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Builder(
+                    builder: (context) {
+                      final events = TimelineService.generateEvents(
+                        colony: colony,
+                        feedingEvents: widget.storage.feedingEvents,
+                        growthRecords: widget.storage.growthRecords,
+                        growthThresholds: AppConfig.populationTiers,
+                      );
+                      return TimelineWidget(events: events);
+                    },
                   ),
                 ],
               ),

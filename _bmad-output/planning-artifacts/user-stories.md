@@ -712,3 +712,94 @@ Export CSV/PDF de l'historique
 
 ### USF1.6 : Connexion backend
 Synchronisation avec le backend `C:\dev\projects\fourmi-backend`
+
+---
+
+## EPIC 4 : Suivi de l'évolution temporelle des colonies
+**Objectif** : Visualiser l'historique complet d'une colonie via une frise chronologique de la fondation à aujourd'hui, intégrant nourrissages, seuils de croissance et ajouts de photos.
+
+### US4.1 : Visualiser la frise chronologique de la colonie
+**En tant que** propriétaire de fourmis,  
+**je veux** consulter une frise chronologique de la date de fondation à aujourd'hui,  
+**afin de** suivre l'évolution globale sur une seule vue.
+
+```gherkin
+Feature: Frise chronologique de colonie
+
+  Scenario: Affichage de la frise sur l'écran de détails
+    Given l'utilisateur est sur l'écran de détails d'une colonie créée le 2025-04-14
+    When l'utilisateur fait défiler la section "Évolution"
+    Then une frise s'affiche avec début à 2025-04-14 (fondation) et fin à la date du jour
+
+  Scenario: Navigation sur la frise
+    Given la frise est affichée
+    When l'utilisateur fait glisser vers la gauche (passé)
+    Then les événements antérieurs s'affichent
+    When l'utilisateur fait glisser vers la droite (futur)
+    Then la frise s'arrête à la date du jour (pas de dates futures)
+```
+
+### US4.2 : Afficher les nourrissages sur la frise
+**En tant que** propriétaire de fourmis,  
+**je veux** voir les sessions de nourrissage marquées sur la frise,  
+**afin de** corréler alimentation et croissance.
+
+```gherkin
+Feature: Événements de nourrissage sur la frise
+
+  Scenario: Marquage d'un nourrissage
+    Given la colonie a un nourrissage le 2025-04-15 (Grillons, note 4/5)
+    And la frise est affichée
+    When l'utilisateur navigue jusqu'au 2025-04-15
+    Then un marqueur "Nourrissage" s'affiche à cette date
+    And le marqueur indique l'aliment (Grillons) et la note (4/5)
+
+  Scenario: Détail d'un nourrissage depuis la frise
+    Given un marqueur de nourrissage est affiché
+    When l'utilisateur clique sur le marqueur
+    Then les détails complets s'affichent (quantité, notes, date)
+```
+
+### US4.3 : Marquer les seuils de croissance sur la frise
+**En tant que** propriétaire de fourmis,  
+**je veux** voir les seuils de population (ex: 100, 500, 1000 individus) marqués sur la frise,  
+**afin de** visualiser les étapes clés de développement.
+
+```gherkin
+Feature: Seuils de croissance sur la frise
+
+  Scenario: Marquage d'un seuil atteint
+    Given la colonie a atteint 500 individus le 2025-05-01
+    And des seuils configurés : 100, 500, 1000
+    And la frise est affichée
+    When l'utilisateur navigue jusqu'au 2025-05-01
+    Then un marqueur "Croissance" s'affiche
+    And le marqueur indique "Seuil 500 individus atteint"
+
+  Scenario: Seuil non atteint
+    Given la colonie a une population de 600 individus
+    And le seuil 1000 est configuré
+    When l'utilisateur navigue sur la frise
+    Then aucun marqueur pour 1000 n'est affiché
+```
+
+### US4.4 : Afficher les dates d'ajout de photos sur la frise
+**En tant que** propriétaire de fourmis,  
+**je veux** voir les dates d'ajout de photos marquées sur la frise,  
+**afin de** suivre l'évolution physique visuelle.
+
+```gherkin
+Feature: Dates d'ajout de photos sur la frise
+
+  Scenario: Marquage d'une photo ajoutée
+    Given la colonie a une photo ajoutée le 2025-04-20
+    And la frise est affichée
+    When l'utilisateur navigue jusqu'au 2025-04-20
+    Then un marqueur "Photo" s'affiche à cette date
+    And le marqueur affiche une miniature de la photo
+
+  Scenario: Ouverture d'une photo depuis la frise
+    Given un marqueur de photo est affiché
+    When l'utilisateur clique sur le marqueur
+    Then la photo s'ouvre en plein écran dans un visualiseur dédié
+```

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../models/models.dart';
@@ -50,7 +51,10 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: [
           const NavigationDestination(icon: Icon(Icons.dashboard), label: 'Tableau de bord'),
-          NavigationDestination(icon: SvgPicture.asset(AntologyImages.antLogo, width: 24, height: 24), label: 'Colonies'),
+          NavigationDestination(
+            icon: FaIcon(FontAwesomeIcons.bug, size: 24, color: AntologyColors.forestGreen),
+            label: 'Colonies',
+          ),
           const NavigationDestination(icon: Icon(Icons.settings), label: 'Paramètres'),
         ],
       ),
