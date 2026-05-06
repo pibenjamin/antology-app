@@ -1,840 +1,604 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart'; // For ImageSource, ImagePicker
-import 'package:image_cropper/image_cropper.dart'; // For ImageCropper, UiSettings classes, CropAspectRatio, etc.
-import 'dart:convert'; // For base64Decode, base64Encode
-import 'dart:io'; // For Platform.isAndroid, Platform.isIOS (for non-web mobile check)
-import '../models/models.dart';
-import '../models/food_data.dart';
-import '../services/storage_service.dart';
-import '../services/timeline_service.dart';
-import '../widgets/timeline_widget.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../antology_theme.dart';
-import '../widgets/category_food_selector.dart';
-import 'add_colony_screen.dart';
+import '../models/models.dart';
+import '../services/storage_service.dart';
 
 class ColonyDetailScreen extends StatefulWidget {
   final String colonyId;
   final StorageService storage;
 
-  const ColonyDetailScreen({super.key, required this.colonyId, required this.storage});
+  const ColonyDetailScreen({
+    super.key,
+    required this.colonyId,
+    required this.storage,
+  });
 
   @override
   State<ColonyDetailScreen> createState() => _ColonyDetailScreenState();
 }
 
 class _ColonyDetailScreenState extends State<ColonyDetailScreen> {
-  void _refresh() => setState(() {});
-  String get colId => widget.colonyId;
-  Colony? get targetColony => widget.storage.colonies.where((c) => c.id == colId).firstOrNull;
+  String _selectedFilter = 'Tous';
 
-  Uint8List _decodeBase64Image(String base64String) {
-    try {
-      if (base64String.startsWith('data:')) {
-        final parts = base64String.split(',');
-        if (parts.length >= 2) {
-          return base64Decode(parts[1]);
+  final List<Map<String, dynamic>> _journalEntries = [
+    {
+      'date': '12 Oct',
+      'icon': Icons.restaurant,
+      'title': 'Sucre + Criblage',
+      'description': 'Remplacé la trémie d\'alimentation. Les ouvrières sont immédiatement actives.',
+      'color': AntologyColors.moss,
+      'type': 'Alimentation',
+    },
+    {
+      'date': '11 Oct',
+      'icon': Icons.people,
+      'title': 'Comptage de population',
+      'description': '480 ouvrières recensées lors du dernier comptage.',
+      'color': AntologyColors.sand,
+      'type': 'Observations',
+    },
+    {
+      'date': '10 Oct',
+      'icon': Icons.thermostat,
+      'title': 'Vérification de la temperature',
+      'description': 'Câble de chauffage maintenant à 24.5°C.',
+      'color': AntologyColors.slate,
+      'type': 'Observations',
+    },
+    {
+      'date': '08 Oct',
+      'icon': Icons.warning_amber,
+      'title': 'Mousse détectée',
+      'description': 'Petite mousse sur la coquille d\'insecte restante.',
+      'color': AntologyColors.terracotta,
+      'type': 'Alertes',
+    },
+    {
+      'date': '05 Oct',
+      'icon': Icons.hive,
+      'title': 'Grande pile de couvées',
+      'description': 'La reine est couvante en grande quantité. Grande pile d\'œufs.',
+      'color': AntologyColors.sand,
+      'type': 'Observations',
+    },
+  ];
+
+  List<Map<String, dynamic>> get _filteredEntries {
+    if (_selectedFilter == 'Tous') return _journalEntries;
+    return _journalEntries.where((entry) => entry['type'] == _selectedFilter).toList();
+  }
+
+  String get _latestTemperature {
+    for (final entry in _journalEntries) {
+      final desc = (entry['description'] ?? '') as String;
+      if (desc.contains('°C')) {
+        final match = RegExp(r'(\d+(?:\.\d+)?)°C').firstMatch(desc);
+        if (match != null) {
+          return '${match.group(1)}°C';
         }
       }
-      return base64Decode(base64String);
-    } catch (e) {
-      debugPrint('Error decoding image: $e');
-      return Uint8List(0);
+    }
+    return '--';
+  }
+
+  String get _latestPopulation {
+    for (final entry in _journalEntries) {
+      final title = entry['title'] as String;
+      final desc = entry['description'] as String;
+      if (title.contains('population') || desc.contains('ouvrières') || desc.contains('individus')) {
+        final words = desc.split(' ');
+        for (final word in words) {
+          final cleaned = word.replaceAll(RegExp(r'[^0-9]'), '');
+          if (cleaned.isNotEmpty) {
+            return '~$cleaned';
+          }
+        }
+      }
+    }
+    return '--';
+  }
+
+  Colony? get _colony {
+    try {
+      return widget.storage.colonies.firstWhere((c) => c.id == widget.colonyId);
+    } catch (_) {
+      return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colony = targetColony;
+    final colony = _colony;
+
     if (colony == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Colonie ID: ${widget.colonyId}')),
-        body: Center(child: Text('Colonie non trouvée: ${widget.colonyId}')),
-      );
-    }
-    final colonyEvents = widget.storage.feedingEvents.where((e) => e.colonyId == colony.id).toList()..sort((a, b) => b.fedAt.compareTo(a.fedAt));
-    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == colony.id).toList();
-    final allCats = getAllCategories(widget.storage.customCategories);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(colony.name),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
-        ),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _editColony(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteConfirmation(context, colony),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildPhotoSection(),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(colony.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text(colony.species, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                  const SizedBox(height: 8),
-                  Text('Créée le: ${colony.createdAt.day}/${colony.createdAt.month}/${colony.createdAt.year}'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Population', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('${colony.population}', style: const TextStyle(fontSize: 24, color: AntologyColors.forestGreen)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Évolution', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Builder(
-                    builder: (context) {
-                      final events = TimelineService.generateEvents(
-                        colony: colony,
-                        feedingEvents: widget.storage.feedingEvents,
-                        growthRecords: widget.storage.growthRecords,
-                        growthThresholds: AppConfig.populationTiers,
-                      );
-                      return TimelineWidget(events: events);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Nourrissage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _showAddFeedingDialog(context),
-                      ),
-                    ],
-                  ),
-                  if (colonyEvents.isNotEmpty) ...[
-                    ...colonyEvents.take(10).map((e) => Card(
-                      child: ListTile(
-                        title: Text(e.foodType),
-                        subtitle: Text('${e.fedAt.day}/${e.fedAt.month}/${e.fedAt.year}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ...List.generate(e.rating ?? 0, (i) => const Icon(Icons.restaurant_menu, size: 16, color: AntologyColors.terracotta)),
-                            IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _showEditFeedingDialog(context, e)),
-                            IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.red), onPressed: () => _showDeleteFeeding(context, e)),
-                          ],
-                        ),
-                      ),
-                    )),
-                  ] else
-                    const Text('Aucun nourrissage', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Préférences', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: () => _showAddCategory(context),
-                            tooltip: 'Ajouter une catégorie',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_box_outlined),
-                            onPressed: () => _showAddFood(context),
-                            tooltip: 'Ajouter un aliment',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...allCats.map((cat) {
-                    final isCustomCategory = widget.storage.customCategories.any((c) => c.name.toLowerCase() == cat.name.toLowerCase());
-                    return ExpansionTile(
-                      title: Row(
-                        children: [
-                          Expanded(child: Text(cat.name)),
-                          if (isCustomCategory)
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                              onPressed: () => _showDeleteCategory(context, cat.name),
-                              tooltip: 'Supprimer la catégorie',
-                            ),
-                        ],
-                      ),
-                      children: cat.foods.isEmpty
-                          ? [const ListTile(title: Text('Aucun aliment', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)))]
-                          : cat.foods.map((f) {
-                              final pref = colonyPrefs.where((p) => p.foodType == f).firstOrNull;
-                              Color chipColor = Colors.grey;
-                              if (pref != null) {
-                                chipColor = pref.status == FoodStatus.accepted
-                                    ? Colors.green
-                                    : pref.status == FoodStatus.rejected ? Colors.red : Colors.grey;
-                              }
-                              return ListTile(
-                                title: Text(f),
-                                trailing: GestureDetector(
-                                  onTap: () => _toggleFoodPreference(context, f),
-                                  child: Chip(
-                                    label: Text(pref?.status.name ?? 'Non testé'),
-                                    backgroundColor: chipColor.withAlpha(51),
-                                    labelStyle: TextStyle(color: chipColor),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoSection() {
-    final c = targetColony;
-    if (c == null) return const SizedBox();
-    final photos = c.photos;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Photos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.add_a_photo),
-                  onPressed: _showPhotoOptions,
-                ),
-              ],
-            ),
-            if (photos.isEmpty)
-              const Center(child: Text('Aucune photo', style: TextStyle(color: Colors.grey)))
-            else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: photos.length,
-                itemBuilder: (context, index) {
-                  final path = photos[index];
-                  final isFeatured = c.featuredPhoto == path;
-                  return GestureDetector(
-                    onTap: () => _showPhotoViewer(path, index),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _decodeBase64Image(path).isEmpty
-                              ? Container(color: Colors.grey[300], child: const Icon(Icons.image, color: Colors.grey))
-                              : Image.memory(
-                                  _decodeBase64Image(path),
-                                  fit: BoxFit.cover,
-                                  gaplessPlayback: true,
-                                  errorBuilder: (_, __, ___) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
-                                ),
-                        ),
-                        if (isFeatured)
-                          const Positioned(
-                            top: 4,
-                            right: 4,
-                            child: Icon(Icons.star, color: Colors.amber, size: 20),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _editColony(BuildContext context) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => AddColonyScreen(storage: widget.storage, colony: targetColony)),
-    );
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _showDeleteConfirmation(BuildContext context, Colony colonyToDelete) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer ?'),
-        content: Text('Supprimer "${colonyToDelete.name}" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              widget.storage.deleteColony(targetColony!.id);
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteFeeding(BuildContext context, FeedingEvent event) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer ?'),
-        content: const Text('Supprimer ce nourrissage ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              widget.storage.deleteFeedingEvent(event.id);
-              Navigator.pop(ctx);
-              _refresh();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddFeedingDialog(BuildContext context) {
-    final allCats = getAllCategories(widget.storage.customCategories);
-    String? selectedFood;
-    final quantityController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
-    int? selectedRating;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Ajouter un nourritsage'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              CategoryFoodSelector(
-                categories: allCats,
-                customFoods: widget.storage.customFoods,
-                onSelected: (category, food) => selectedFood = food,
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                subtitle: Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setDialogState(() => selectedDate = picked);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final rating = index + 1;
-                  return GestureDetector(
-                    onTap: () => setDialogState(() => selectedRating = rating),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.restaurant_menu,
-                        size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
-                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedFood == null) return;
-                widget.storage.addFeedingEvent(FeedingEvent(
-                  id: widget.storage.generateId(),
-                  colonyId: targetColony!.id,
-                  foodType: selectedFood!,
-                  quantity: quantityController.text.isEmpty ? null : quantityController.text,
-                  fedAt: selectedDate,
-                  rating: selectedRating,
-                ));
-                Navigator.pop(ctx);
-                _refresh();
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showEditFeedingDialog(BuildContext context, FeedingEvent event) {
-    final allCats = getAllCategories(widget.storage.customCategories);
-    String selectedFood = event.foodType;
-    final quantityController = TextEditingController(text: event.quantity);
-    DateTime selectedDate = event.fedAt;
-    int? selectedRating = event.rating;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Modifier nourrissage'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              CategoryFoodSelector(
-                categories: allCats,
-                customFoods: widget.storage.customFoods,
-                onSelected: (category, food) => selectedFood = food,
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: quantityController, decoration: const InputDecoration(labelText: 'Quantité (optionnel)')),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                subtitle: Text('${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setDialogState(() => selectedDate = picked);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text('Note', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final rating = index + 1;
-                  return GestureDetector(
-                    onTap: () => setDialogState(() => selectedRating = rating),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.restaurant_menu,
-                        size: selectedRating != null && rating <= selectedRating! ? 32 : 24,
-                        color: selectedRating != null && rating <= selectedRating! ? AntologyColors.terracotta : Colors.grey,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedFood == null) return;
-                widget.storage.updateFeedingEvent(FeedingEvent(
-                  id: event.id,
-                  colonyId: event.colonyId,
-                  foodType: selectedFood,
-                  quantity: quantityController.text.isEmpty ? null : quantityController.text,
-                  fedAt: selectedDate,
-                  rating: selectedRating,
-                ));
-                Navigator.pop(ctx);
-                _refresh();
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddCategory(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ajouter une catégorie'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: controller, decoration: const InputDecoration(labelText: 'Nom de la catégorie'), autofocus: true),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isEmpty) return;
-              final success = await widget.storage.addCustomCategory(controller.text.trim());
-              if (!success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cette catégorie existe déjà')),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              _refresh();
-            },
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddFood(BuildContext context) {
-    final allCats = getAllCategories(widget.storage.customCategories);
-    String? selectedCategory;
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ajouter un aliment'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(labelText: 'Catégorie'),
-            items: allCats.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))).toList(),
-            onChanged: (v) => selectedCategory = v,
-          ),
-          const SizedBox(height: 16),
-          TextField(controller: controller, decoration: const InputDecoration(labelText: 'Nom de l\'aliment')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isEmpty) return;
-              await widget.storage.addCustomFood(controller.text.trim(), categoryName: selectedCategory);
-              Navigator.pop(ctx);
-              _refresh();
-            },
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteCategory(BuildContext context, String categoryName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la catégorie ?'),
-        content: Text('Supprimer "$categoryName" ?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () {
-              widget.storage.deleteCustomCategory(categoryName);
-              Navigator.pop(ctx);
-              _refresh();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AntologyColors.terracotta, foregroundColor: Colors.white),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _toggleFoodPreference(BuildContext context, String food) async {
-    final c = targetColony;
-    if (c == null) return;
-    final colonyPrefs = widget.storage.foodPreferences.where((p) => p.colonyId == c.id);
-    final pref = colonyPrefs.where((p) => p.foodType == food).firstOrNull;
-    FoodStatus newStatus;
-    if (pref == null || pref.status == FoodStatus.unknown) {
-      newStatus = FoodStatus.accepted;
-    } else if (pref.status == FoodStatus.accepted) {
-      newStatus = FoodStatus.rejected;
-    } else {
-      newStatus = FoodStatus.unknown;
-    }
-    await widget.storage.addFoodPreference(FoodPreference(colonyId: c.id, foodType: food, status: newStatus));
-    _refresh();
-  }
-
-  Future<void> _addPhoto(ImageSource source) async {
-    debugPrint('[_addPhoto] Starting...');
-    
-    final c = targetColony;
-    if (c == null) {
-      debugPrint('[_addPhoto] Colony is null, cannot add photo.');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur: Colonie introuvable')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, imageQuality: 80);
-      if (picked == null) {
-        debugPrint('[_addPhoto] No image picked.');
-        return;
-      }
-      debugPrint('[_addPhoto] Image picked: ${picked.path}');
-      
-      CroppedFile? croppedFile;
-
-      if (kIsWeb) {
-        debugPrint('[_addPhoto] Cropping for Web...');
-        croppedFile = await ImageCropper().cropImage(
-          sourcePath: picked.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            WebUiSettings(context: context),
-          ],
-        );
-        debugPrint('[_addPhoto] Web cropping result: ${croppedFile?.path}');
-      } else if (Platform.isAndroid || Platform.isIOS) {
-        debugPrint('[_addPhoto] Cropping for Android/iOS...');
-        croppedFile = await ImageCropper().cropImage(
-          sourcePath: picked.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Rogner en carré',
-              toolbarColor: AntologyColors.forestGreen,
-              toolbarWidgetColor: Colors.white,
-              backgroundColor: Colors.black,
-              lockAspectRatio: true,
-              showCropGrid: true,
-              hideBottomControls: false,
-              initAspectRatio: CropAspectRatioPreset.square,
-              aspectRatioPresets: [
-                CropAspectRatioPreset.square,
-                CropAspectRatioPreset.ratio3x2,
-                CropAspectRatioPreset.original,
-                CropAspectRatioPreset.ratio4x3,
-                CropAspectRatioPreset.ratio16x9
-              ],
-            ),
-            IOSUiSettings(
-              title: 'Rogner en carré',
-              aspectRatioLockEnabled: true,
-              rotateButtonsHidden: false,
-              aspectRatioPresets: [
-                CropAspectRatioPreset.square,
-                CropAspectRatioPreset.ratio3x2,
-                CropAspectRatioPreset.original,
-                CropAspectRatioPreset.ratio4x3,
-                CropAspectRatioPreset.ratio16x9
-              ],
-            ),
-          ],
-        );
-        debugPrint('[_addPhoto] Mobile cropping result: ${croppedFile?.path}');
-      }
-
-      Uint8List imageBytes;
-      if (croppedFile != null) {
-        debugPrint('[_addPhoto] Reading cropped file bytes...');
-        imageBytes = await croppedFile.readAsBytes();
-        debugPrint('[_addPhoto] Cropped file bytes read: ${imageBytes.length}');
-      } else {
-        debugPrint('[_addPhoto] Crop cancelled or failed, falling back to original image...');
-        imageBytes = await picked.readAsBytes();
-        debugPrint('[_addPhoto] Original image bytes read: ${imageBytes.length}');
-      }
-
-      final base64Image = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
-      debugPrint('[_addPhoto] Adding photo to colony: ${c.id}');
-      await widget.storage.addPhotoToColony(c.id, base64Image);
-      debugPrint('[_addPhoto] Photo added successfully. Refreshing...');
-      _refresh();
-      debugPrint('[_addPhoto] Done.');
-    } catch (e, stackTrace) {
-      debugPrint('[_addPhoto] ERROR: $e');
-      debugPrint('[_addPhoto] STACK TRACE: $stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors de l\'ajout de la photo: $e')),
-        );
-      }
-    }
-  }
-
-  void _showPhotoOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choisir dans la galerie'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _addPhoto(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Prendre une photo'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _addPhoto(ImageSource.camera);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPhotoViewer(String photoPath, int index) {
-    final currentColony = targetColony;
-    if (currentColony == null) return;
-    final currentFeatured = currentColony.featuredPhoto;
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        child: SingleChildScrollView(
+        backgroundColor: AntologyColors.background,
+        body: Center(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: _decodeBase64Image(photoPath).isEmpty
-                    ? Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image, size: 48)))
-                    : Image.memory(_decodeBase64Image(photoPath), fit: BoxFit.cover),
+              Text(
+                'Colonie non trouvée',
+                style: GoogleFonts.dmSans(color: AntologyColors.sand),
               ),
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    if (currentFeatured != photoPath)
-                      TextButton.icon(
-                        icon: const Icon(Icons.star),
-                        label: const Text('En avant'),
-                        onPressed: () {
-                          widget.storage.setFeaturedPhoto(currentColony.id, photoPath);
-                          Navigator.pop(ctx);
-                          _refresh();
-                        },
-                      )
-                    else
-                      TextButton.icon(
-                        icon: const Icon(Icons.star_border),
-                        label: const Text('Retirer'),
-                        onPressed: () {
-                          widget.storage.setFeaturedPhoto(currentColony.id, null);
-                          Navigator.pop(ctx);
-                          _refresh();
-                        },
-                      ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                      onPressed: () {
-                        widget.storage.removePhotoFromColony(currentColony.id, photoPath);
-                        Navigator.pop(ctx);
-                        _refresh();
-                      },
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.go('/home'),
+                child: const Text('Retour'),
               ),
             ],
           ),
         ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AntologyColors.background,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.03,
+              child: Image.network(
+                'https://www.transparenttextures.com/patterns/stardust.png',
+                repeat: ImageRepeat.repeat,
+                errorBuilder: (_, __, ___) => Container(color: AntologyColors.background),
+              ),
+            ),
+          ),
+          ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              const SizedBox(height: 24),
+              _buildHeader(context),
+              const SizedBox(height: 32),
+              _buildStatsRow(context),
+              const SizedBox(height: 32),
+              _buildVitalityBar(context),
+              const SizedBox(height: 32),
+              _buildJournalSection(context),
+              const SizedBox(height: 100),
+            ],
+          ),
+        ],
+      ),
+      floatingActionButton: _buildFAB(context),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final species = _colony?.species ?? 'Espèce inconnue';
+    final colonyName = _colony?.name ?? 'Colonia';
+    final createdAt = _colony?.createdAt ?? DateTime.now();
+    final dateStr = 'Créée le ${AppConfig.formatDateFull(createdAt)}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            colonyName,
+            style: GoogleFonts.ptSerif(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              fontStyle: FontStyle.italic,
+              color: AntologyColors.amber,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            species,
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              color: AntologyColors.sand,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AntologyColors.surface,
+                  borderRadius: BorderRadius.circular(AntologyRadius.sm),
+                  border: Border.all(color: AntologyColors.border),
+                ),
+                child: Text(
+                  dateStr,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AntologyColors.sand,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AntologyColors.moss,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Florissante',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AntologyColors.moss,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsRow(BuildContext context) {
+    final temperature = _latestTemperature;
+    final population = _latestPopulation;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildStatItem(icon: Icons.layers, value: '1', label: 'Reine', color: AntologyColors.amber),
+          _buildStatItem(icon: Icons.groups, value: population, label: 'Ouvrières', color: AntologyColors.sand),
+          _buildStatItem(icon: Icons.circle_outlined, value: 'High', label: 'Couvées', color: AntologyColors.sand),
+          _buildStatItem(icon: Icons.thermostat, value: temperature, label: 'Température', color: AntologyColors.slate),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, size: 24, color: color),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AntologyColors.foreground,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            color: AntologyColors.sand,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVitalityBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AntologyColors.surface,
+          borderRadius: BorderRadius.circular(AntologyRadius.lg),
+          border: Border.all(color: AntologyColors.border),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Vitalité de la colonie',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AntologyColors.sand,
+                  ),
+                ),
+                Text(
+                  'Post-diapause · Récupération active',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AntologyColors.moss,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 6,
+              decoration: BoxDecoration(
+                color: AntologyColors.background,
+                borderRadius: BorderRadius.circular(AntologyRadius.full),
+                border: Border.all(color: AntologyColors.border),
+              ),
+              child: FractionallySizedBox(
+                widthFactor: 0.78,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AntologyColors.moss,
+                    borderRadius: BorderRadius.circular(AntologyRadius.full),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJournalSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Journal',
+            style: GoogleFonts.ptSerif(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              fontStyle: FontStyle.italic,
+              color: AntologyColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['Tous', 'Alimentation', 'Observations', 'Notes', 'Alertes']
+                  .map((filter) => _buildFilterChip(filter))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildTimeline(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label) {
+    final isSelected = _selectedFilter == label;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedFilter = label;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AntologyColors.amber : Colors.transparent,
+            borderRadius: BorderRadius.circular(AntologyRadius.full),
+            border: Border.all(
+              color: isSelected ? AntologyColors.amber : AntologyColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              color: isSelected ? AntologyColors.primaryForeground : AntologyColors.sand,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeline(BuildContext context) {
+    final entries = _filteredEntries;
+
+    if (entries.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        child: Text(
+          'Aucun résultat',
+          style: GoogleFonts.dmSans(
+            fontSize: 14,
+            color: AntologyColors.sand,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: entries.map((entry) {
+        return _buildTimelineEntry(
+          context,
+          entry['date'],
+          entry['icon'],
+          entry['title'],
+          entry['description'],
+          entry['color'],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTimelineEntry(BuildContext context, String date, IconData icon, String title, String description, Color iconColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 40,
+          child: Text(
+            date,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AntologyColors.sand,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Column(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AntologyColors.background,
+                border: Border.all(
+                  color: iconColor,
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: 16,
+                color: iconColor,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 80,
+              color: AntologyColors.border,
+            ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AntologyColors.surface,
+              borderRadius: BorderRadius.circular(AntologyRadius.lg),
+              border: Border.all(color: AntologyColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AntologyColors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AntologyColors.sand,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFAB(BuildContext context) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: AntologyColors.amber,
+        borderRadius: BorderRadius.circular(AntologyRadius.full),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add, size: 20, color: AntologyColors.primaryForeground),
+          const SizedBox(width: 8),
+          Text(
+            'Nouvelle entrée',
+            style: GoogleFonts.dmSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AntologyColors.primaryForeground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: AntologyColors.surface,
+        border: const Border(top: BorderSide(color: AntologyColors.border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(context, Icons.home, 'Accueil', false),
+          _buildNavItem(context, Icons.book, 'Journal', true),
+          _buildNavItem(context, Icons.hive_outlined, 'Espèces', false),
+          _buildNavItem(context, Icons.trending_up, 'Vols', false),
+          _buildNavItem(context, Icons.person, 'Profil', false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(BuildContext context, IconData icon, String label, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        if (label == 'Accueil') {
+          context.go('/home');
+        }
+        // TODO: Add navigation for other items when screens are ready
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 24,
+            color: isSelected ? AntologyColors.amber : AntologyColors.sand,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              color: isSelected ? AntologyColors.amber : AntologyColors.sand,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -29,3 +29,29 @@ flutter run    # Lancer l'application
 ## User Stories
 
 Les user stories détaillées sont dans `_bmad-output/planning-artifacts/user-stories.md`
+
+## Session 2026-05-04
+
+### Nouveau design "Vie de la colonie" (Design v2)
+
+**Demande :** Nouveau design basé sur `vie-de-la-colonie.html` avec :
+- Couleurs sombres : background #1A1208, surface #2D1F0A, foreground #F0E6CC
+- Palette : amber #E4A84A, sand #B89A6A, moss #6A9463, slate #7AABCC, terracotta #CC7A50
+- Polices : DM Sans (body), PT Serif (headings, italic)
+- Google Fonts : DM Sans, PT Serif, Geist, IBM Plex, Inter, Nunito, Roboto, Shantell Sans, Space Grotesk
+- Radius : sm 4px, md 8px, lg 12px, full 9999px
+- Typographie : xs 12px, sm 14px, lg 18px, xl 20px, 3xl 30px
+
+**Modifications :**
+1. `pubspec.yaml` : Ajout `google_fonts: ^6.2.1`
+2. `docs/antology_theme.dart` : Nouvelles couleurs + polices (fichier de référence)
+3. `lib/antology_theme.dart` : Mise à jour avec nouvelles couleurs + `AntologyRadius` + `darkTheme`
+4. `lib/screens/colony_detail_screen.dart` : Réécriture avec nouveau design (header, stats, vitality bar, journal timeline, FAB, bottom nav)
+5. `lib/main.dart` : Utilisation de `AntologyTheme.darkTheme`
+
+**Test :** `flutter run -d windows` ✅ (Build réussi, app lancée)
+
+**Problème rencontré :** Pixel 6 non détecté par adb (debogage USB à activer)
+## EPIC & User Stories créés dans cette session :
+- _bmad-output/planning-artifacts/epic-colony-life.md : EPIC 'Vie de la Colonie'
+- _bmad-output/planning-artifacts/user-stories.md : US-VDC-01 à US-VDC-07 ajoutées

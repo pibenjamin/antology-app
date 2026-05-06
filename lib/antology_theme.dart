@@ -1,40 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AntologyColors {
+  // Nouvelle palette (Design v2)
+  static const Color background = Color(0xFF1A1208);
+  static const Color surface = Color(0xFF2D1F0A);
+  static const Color foreground = Color(0xFFF0E6CC);
+  static const Color border = Color(0xFF4A3620);
+  
+  static const Color amber = Color(0xFFE4A84A);
+  static const Color sand = Color(0xFFB89A6A);
+  static const Color moss = Color(0xFF6A9463);
+  static const Color slate = Color(0xFF7AABCC);
+  static const Color terracotta = Color(0xFFCC7A50);
+  static const Color primaryForeground = Color(0xFF1A1208);
+  
+  // Ancienne palette (conservée pour compatibilité)
   static const Color forestGreen = Color(0xFF1D9E75);
-  static const Color terracotta = Color(0xFFD85A30);
   static const Color stoneGray = Color(0xFF888780);
   static const Color skyBlue = Color(0xFF378ADD);
-
+  
   static const Color tealLight = Color(0xFFE1F5EE);
   static const Color teal100 = Color(0xFF9FE1CB);
   static const Color teal200 = Color(0xFF5DCAA5);
   static const Color teal400 = Color(0xFF1D9E75);
   static const Color teal600 = Color(0xFF0F6E56);
   static const Color teal800 = Color(0xFF085041);
-
+  
   static const Color coralLight = Color(0xFFFAECE7);
   static const Color coral400 = Color(0xFFD85A30);
   static const Color coral800 = Color(0xFF712B13);
-
+  
   static const Color grayLight = Color(0xFFF1EFE8);
   static const Color gray200 = Color(0xFFB4B2A9);
   static const Color gray400 = Color(0xFF888780);
   static const Color gray600 = Color(0xFF5F5E5A);
   static const Color gray800 = Color(0xFF444441);
-
+  
   static const Color blueLight = Color(0xFFE6F1FB);
   static const Color blue400 = Color(0xFF378ADD);
   static const Color blue800 = Color(0xFF0C447C);
-
+  
   static const Color greenLight = Color(0xFFEAF3DE);
   static const Color green600 = Color(0xFF3B6D11);
-
+  
   static const Color purpleLight = Color(0xFFEEEDFE);
   static const Color purple600 = Color(0xFF3C3489);
-
+  
   static const Color redLight = Color(0xFFFCEBEB);
   static const Color red600 = Color(0xFFA32D2D);
+}
+
+class AntologyRadius {
+  static const double sm = 4.0;
+  static const double md = 8.0;
+  static const double lg = 12.0;
+  static const double full = 9999.0;
 }
 
 class AntologyTheme {
@@ -192,19 +213,32 @@ class AntologyTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.dark(
-        primary: AntologyColors.teal200,
-        onPrimary: Colors.black,
-        secondary: AntologyColors.coral400,
-        onSecondary: Colors.white,
-        tertiary: AntologyColors.blue400,
-        onTertiary: Colors.white,
-        surface: AntologyColors.gray800,
-        onSurface: Colors.white,
-        surfaceContainerHighest: AntologyColors.gray600,
-        outline: AntologyColors.gray400.withValues(alpha: 0.3),
-        error: AntologyColors.coral400,
+        primary: AntologyColors.amber,
+        onPrimary: AntologyColors.primaryForeground,
+        secondary: AntologyColors.moss,
+        onSecondary: AntologyColors.primaryForeground,
+        tertiary: AntologyColors.slate,
+        onTertiary: AntologyColors.primaryForeground,
+        surface: AntologyColors.surface,
+        onSurface: AntologyColors.foreground,
+        surfaceContainerHighest: AntologyColors.surface,
+        outline: AntologyColors.border,
+        error: AntologyColors.terracotta,
       ),
-      scaffoldBackgroundColor: Colors.black,
+      scaffoldBackgroundColor: AntologyColors.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: AntologyColors.background,
+        foregroundColor: AntologyColors.foreground,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.ptSerif(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          fontStyle: FontStyle.italic,
+          color: AntologyColors.amber,
+        ),
+        iconTheme: IconThemeData(color: AntologyColors.sand),
+      ),
     );
   }
 }

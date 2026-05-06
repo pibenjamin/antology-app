@@ -20,9 +20,6 @@ class StorageService {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     AppConfig.debugMode = _prefs.getBool('debugMode') ?? false;
-    await _prefs.remove('colonies');
-    await _prefs.remove('feedingEvents');
-    await _prefs.remove('foodPreferences');
     await _loadData();
     if (colonies.isEmpty) {
       final athena = Colony(id: generateId(), name: 'Athéna', species: 'Messor barbarus', createdAt: DateTime(2025, 4, 1), population: 50);

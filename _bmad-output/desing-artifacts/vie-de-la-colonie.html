@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Formicarium — Journal de Colonie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-background: #1a1208;
+      --color-surface: #2d1f0a;
+      --color-foreground: #f0e6cc;
+      --color-border: #4a3620;
+      --color-primary-foreground: #1a1208;
+      --color-amber: #e4a84a;
+      --color-sand: #b89a6a;
+      --color-moss: #6a9463;
+      --color-slate: #7aabcc;
+      --color-terracotta: #cc7a50;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+      --font-body: 'DM Sans', sans-serif;
+      --font-headings: 'PT Serif', serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #100d08;
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 20px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .device-frame {
+      position: relative;
+      width: 375px;
+      min-height: 812px;
+      background: var(--color-background);
+      border-radius: 40px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5), inset 0 0 0 10px #1a1208;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .mobile-screen {
+      position: relative;
+      width: 100%;
+      min-height: 812px;
+      background: var(--color-background);
+      color: var(--color-foreground);
+      padding-bottom: 100px;
+      overflow-x: hidden;
+    }
+
+    .texture-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+    }
+
+    /* Status bar */
+    .status-bar {
+      height: 24px;
+      width: 100%;
+    }
+
+    /* Header */
+    .header {
+      padding: 16px 20px 24px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .species-title {
+      font-family: var(--font-headings);
+      font-style: italic;
+      font-size: 30px;
+      color: var(--color-amber);
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .meta-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-size: 12px;
+      color: var(--color-sand);
+      background: var(--color-surface);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--color-moss);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-moss);
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 32px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--color-amber);
+    }
+
+    .stat-value {
+      color: var(--color-foreground);
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .stat-label {
+      color: var(--color-sand);
+      font-size: 12px;
+    }
+
+    /* Vitality bar */
+    .vitality-card {
+      margin-top: 32px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .vitality-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--color-moss);
+      flex-shrink: 0;
+    }
+
+    .vitality-content {
+      flex: 1;
+    }
+
+    .vitality-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .vitality-label {
+      color: var(--color-sand);
+    }
+
+    .vitality-status {
+      color: var(--color-moss);
+    }
+
+    .progress-bar {
+      height: 6px;
+      width: 100%;
+      background: var(--color-background);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--color-moss);
+      width: 78%;
+      border-radius: var(--radius-full);
+    }
+
+    /* Journal section */
+    .journal-section {
+      margin-top: 8px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .journal-header {
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .journal-title {
+      font-family: var(--font-headings);
+      font-size: 20px;
+      color: var(--color-foreground);
+    }
+
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--color-sand);
+      font-size: 14px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .filter-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 0 20px;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      white-space: nowrap;
+      scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab {
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: var(--color-amber);
+      color: var(--color-primary-foreground);
+      font-weight: 500;
+    }
+
+    .tab:not(.active) {
+      background: transparent;
+      color: var(--color-sand);
+      border: 1px solid var(--color-border);
+    }
+
+    /* Timeline */
+    .timeline {
+      padding: 0 20px;
+      position: relative;
+    }
+
+    .timeline-line {
+      position: absolute;
+      left: 59px;
+      top: 8px;
+      bottom: 0;
+      width: 1px;
+      background: var(--color-border);
+    }
+
+    .timeline-entry {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .entry-date {
+      width: 40px;
+      padding-top: 4px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .entry-date-text {
+      font-size: 12px;
+      color: var(--color-sand);
+      font-weight: 500;
+    }
+
+    .entry-icon-wrapper {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-background);
+      border: 2px solid;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      z-index: 10;
+      position: relative;
+    }
+
+    .entry-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .entry-icon-wrapper.moss {
+      border-color: var(--color-moss);
+      color: var(--color-moss);
+    }
+
+    .entry-icon-wrapper.slate {
+      border-color: var(--color-slate);
+      color: var(--color-slate);
+    }
+
+    .entry-icon-wrapper.terracotta {
+      border-color: var(--color-terracotta);
+      color: var(--color-terracotta);
+    }
+
+    .entry-icon-wrapper.sand {
+      border-color: var(--color-sand);
+      color: var(--color-sand);
+    }
+
+    .entry-content-card {
+      flex: 1;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      padding: 12px;
+      border-radius: var(--radius-lg);
+    }
+
+    .entry-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-foreground);
+      margin-bottom: 4px;
+    }
+
+    .entry-description {
+      font-size: 12px;
+      color: var(--color-sand);
+      line-height: 1.6;
+    }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: 90px;
+      right: 24px;
+      z-index: 100;
+    }
+
+    .fab-btn {
+      height: 48px;
+      padding: 0 16px;
+      background: var(--color-amber);
+      color: var(--color-primary-foreground);
+      border: none;
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(228, 168, 74, 0.4);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .fab-icon {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--color-surface);
+      border-top: 2px solid var(--color-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: stretch;
+      z-index: 30;
+      padding: 0;
+    }
+
+    .bottom-nav::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--color-amber), transparent);
+      opacity: 0.3;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex: 1;
+      padding: 12px 8px 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      background: transparent;
+      border: none;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) scaleX(0);
+      width: 40px;
+      height: 3px;
+      background: var(--color-amber);
+      border-radius: 0 0 3px 3px;
+      transition: transform 0.3s ease;
+    }
+
+    .nav-item.active::before {
+      transform: translateX(-50%) scaleX(1);
+    }
+
+    .nav-item:not(.active) {
+      color: var(--color-sand);
+      opacity: 0.6;
+    }
+
+    .nav-item.active {
+      color: var(--color-amber);
+      opacity: 1;
+    }
+
+    .nav-item:active {
+      transform: scale(0.95);
+    }
+
+    .nav-icon {
+      width: 22px;
+      height: 22px;
+      transition: all 0.3s ease;
+    }
+
+    .nav-item.active .nav-icon {
+      transform: translateY(-2px);
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    /* SVG icons */
+    svg {
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+
+<div class="device-frame">
+  <div class="mobile-screen">
+    <div class="texture-overlay"></div>
+    
+    <!-- Status bar -->
+    <div class="status-bar"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <h1 class="species-title">Lasius niger</h1>
+          <div class="meta-info">
+            <span class="badge">Est. Mar 2023</span>
+            <div class="status-indicator">
+              <div class="status-dot"></div>
+              <span>Thriving</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24">
+            <polygon points="4 20 20 20 16 10 12 15 8 10"/>
+            <polygon points="4 20 4 10 8 10"/>
+            <polygon points="20 20 20 10 16 10"/>
+          </svg>
+          <span class="stat-value">1</span>
+          <span class="stat-label">Queen</span>
+        </div>
+
+        <div class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24">
+            <rect x="10" y="4" width="4" height="4"/>
+            <rect x="10" y="10" width="4" height="6"/>
+            <rect x="10" y="18" width="4" height="4"/>
+            <line x1="14" y1="12" x2="18" y2="12"/>
+            <line x1="6" y1="12" x2="10" y2="12"/>
+            <line x1="14" y1="14" x2="17" y2="16"/>
+            <line x1="10" y1="14" x2="7" y2="16"/>
+          </svg>
+          <span class="stat-value">~450</span>
+          <span class="stat-label">Workers</span>
+        </div>
+
+        <div class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <span class="stat-value">High</span>
+          <span class="stat-label">Brood</span>
+        </div>
+
+        <div class="stat-item">
+          <svg class="stat-icon" viewBox="0 0 24 24" style="color: var(--color-slate)">
+            <rect x="10" y="3" width="4" height="14"/>
+            <circle cx="12" cy="18" r="4"/>
+            <line x1="10" y1="12" x2="14" y2="12"/>
+            <line x1="10" y1="8" x2="14" y2="8"/>
+          </svg>
+          <span class="stat-value">24°C</span>
+          <span class="stat-label">Temp</span>
+        </div>
+      </div>
+
+      <!-- Vitality -->
+      <div class="vitality-card">
+        <svg class="vitality-icon" viewBox="0 0 24 24">
+          <polygon points="12 2 4 10 12 22 20 10"/>
+          <line x1="12" y1="2" x2="12" y2="22"/>
+        </svg>
+        <div class="vitality-content">
+          <div class="vitality-header">
+            <span class="vitality-label">Colony Vitality</span>
+            <span class="vitality-status">Post-diapause · Active recovery</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Journal -->
+    <div class="journal-section">
+      <div class="journal-header">
+        <h2 class="journal-title">Journal</h2>
+        <button class="filter-btn">
+          <svg class="filter-icon" viewBox="0 0 24 24">
+            <rect x="4" y="6" width="16" height="2"/>
+            <rect x="8" y="11" width="8" height="2"/>
+            <rect x="10" y="16" width="4" height="2"/>
+          </svg>
+          <span>Filter</span>
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active">All</button>
+        <button class="tab">Feeding</button>
+        <button class="tab">Observations</button>
+        <button class="tab">Notes</button>
+        <button class="tab">Alerts</button>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline">
+        <div class="timeline-line"></div>
+
+        <div class="timeline-entry">
+          <div class="entry-date">
+            <span class="entry-date-text">Oct 12</span>
+          </div>
+          <div class="entry-icon-wrapper moss">
+            <svg class="entry-icon" viewBox="0 0 24 24">
+              <polygon points="12 4 6 16 18 16"/>
+              <line x1="6" y1="20" x2="18" y2="20"/>
+            </svg>
+          </div>
+          <div class="entry-content-card">
+            <h4 class="entry-title">Sugar water + Mealworm</h4>
+            <p class="entry-description">Replaced feeding tray. Foragers immediately active.</p>
+          </div>
+        </div>
+
+        <div class="timeline-entry">
+          <div class="entry-date">
+            <span class="entry-date-text">Oct 10</span>
+          </div>
+          <div class="entry-icon-wrapper slate">
+            <svg class="entry-icon" viewBox="0 0 24 24">
+              <path d="M4 14a8 8 0 0 1 16 0"/>
+              <line x1="12" y1="14" x2="16" y2="10"/>
+              <line x1="4" y1="14" x2="20" y2="14"/>
+            </svg>
+          </div>
+          <div class="entry-content-card">
+            <h4 class="entry-title">Temperature check</h4>
+            <p class="entry-description">Heating cable maintaining 24.5°C steady.</p>
+          </div>
+        </div>
+
+        <div class="timeline-entry">
+          <div class="entry-date">
+            <span class="entry-date-text">Oct 08</span>
+          </div>
+          <div class="entry-icon-wrapper terracotta">
+            <svg class="entry-icon" viewBox="0 0 24 24">
+              <polygon points="12 4 4 20 20 20"/>
+              <rect x="11" y="10" width="2" height="4"/>
+              <rect x="11" y="16" width="2" height="2"/>
+            </svg>
+          </div>
+          <div class="entry-content-card">
+            <h4 class="entry-title">Mold spotted</h4>
+            <p class="entry-description">Small patch of mold on leftover insect shell in outworld. Removed and cleaned area.</p>
+          </div>
+        </div>
+
+        <div class="timeline-entry">
+          <div class="entry-date">
+            <span class="entry-date-text">Oct 05</span>
+          </div>
+          <div class="entry-icon-wrapper sand">
+            <svg class="entry-icon" viewBox="0 0 24 24">
+              <polygon points="2 12 12 4 22 12 12 20"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div class="entry-content-card">
+            <h4 class="entry-title">Large brood pile</h4>
+            <p class="entry-description">Queen is laying heavily. Massive pile of eggs and early instar larvae visible.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FAB -->
+    <div class="fab">
+      <button class="fab-btn">
+        <svg class="fab-icon" viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>New Entry</span>
+      </button>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="bottom-nav">
+      <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <polygon points="12 4 4 10 4 20 20 20 20 10"/>
+          <rect x="10" y="14" width="4" height="6"/>
+        </svg>
+        <span class="nav-label">Home</span>
+      </button>
+
+      <button class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <rect x="5" y="3" width="14" height="18"/>
+          <line x1="9" y1="8" x2="15" y2="8"/>
+          <line x1="9" y1="12" x2="15" y2="12"/>
+          <line x1="9" y1="16" x2="12" y2="16"/>
+        </svg>
+        <span class="nav-label">Journal</span>
+      </button>
+
+      <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16"/>
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+        <span class="nav-label">Species</span>
+      </button>
+
+      <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <polyline points="4 14 10 8 14 12 20 6"/>
+          <circle cx="20" cy="6" r="2"/>
+        </svg>
+        <span class="nav-label">Flights</span>
+      </button>
+
+      <button class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24">
+          <rect x="6" y="14" width="12" height="8"/>
+          <rect x="9" y="4" width="6" height="6"/>
+        </svg>
+        <span class="nav-label">Profile</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

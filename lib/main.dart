@@ -46,7 +46,7 @@ class AntologyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Antology',
       debugShowCheckedModeBanner: true,
-      theme: AntologyTheme.lightTheme,
+      theme: AntologyTheme.darkTheme,
       routerConfig: router,
     );
   }

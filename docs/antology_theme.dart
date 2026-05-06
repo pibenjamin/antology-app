@@ -1,23 +1,41 @@
 /// Antology Design System
 /// Design system complet pour l'application de myrmécologie amateur
 /// 
-/// Palette inspirée de l'observation naturaliste scientifique :
-/// - Forest Green (#1D9E75) : Actions primaires, états actifs
-/// - Terracotta (#D85A30) : Warnings, espèces invasives
-/// - Stone Gray (#888780) : Texte secondaire, bordures
-/// - Sky Blue (#378ADD) : Information, liens
+/// Nouvelle palette (Design v2) :
+/// - Background (#1A1208) : Fond sombre principal
+/// - Surface (#2D1F0A) : Surfaces (cards, modals)
+/// - Foreground (#F0E6CC) : Texte principal
+/// - Border (#4A3620) : Bordures
+/// - Amber (#E4A84A) : Accent principal (or)
+/// - Sand (#B89A6A) : Texte secondaire (sable)
+/// - Moss (#6A9463) : Succès, statut actif (mousse)
+/// - Slate (#7AABCC) : Info, température (ardoise)
+/// - Terracotta (#CC7A50) : Alertes (terre cuite)
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // ============================================================================
-// COLORS PALETTE
+// COLORS PALETTE (Design v2)
 // ============================================================================
 
 class AntologyColors {
-  // Couleurs primaires
+  // Nouvelle palette (Design v2)
+  static const Color background = Color(0xFF1A1208);      // Fond principal sombre
+  static const Color surface = Color(0xFF2D1F0A);         // Surfaces (cards, modals)
+  static const Color foreground = Color(0xFFF0E6CC);       // Texte principal
+  static const Color border = Color(0xFF4A3620);           // Bordures
+  
+  static const Color amber = Color(0xFFE4A84A);            // Accent principal (or)
+  static const Color sand = Color(0xFFB89A6A);             // Texte secondaire (sable)
+  static const Color moss = Color(0xFF6A9463);             // Succès, statut actif (mousse)
+  static const Color slate = Color(0xFF7AABCC);            // Info, température (ardoise)
+  static const Color terracotta = Color(0xFFCC7A50);       // Alertes (terre cuite)
+  
+  static const Color primaryForeground = Color(0xFF1A1208); // Texte sur couleur primaire
+  
+  // Ancienne palette (conservée pour compatibilité)
   static const Color forestGreen = Color(0xFF1D9E75);
-  static const Color terracotta = Color(0xFFD85A30);
   static const Color stoneGray = Color(0xFF888780);
   static const Color skyBlue = Color(0xFF378ADD);
   
@@ -54,32 +72,112 @@ class AntologyColors {
 }
 
 // ============================================================================
+// RADIUS CONSTANTS (Design v2)
+// ============================================================================
+
+class AntologyRadius {
+  static const double sm = 4.0;    // Petits éléments
+  static const double md = 8.0;    // Cards, inputs
+  static const double lg = 12.0;   // Conteneurs larges
+  static const double full = 9999.0; // Badges, avatars, pills
+}
+
+// ============================================================================
 // THEME DATA
 // ============================================================================
 
 class AntologyTheme {
-  /// Theme principal (Light mode)
-  static ThemeData get lightTheme {
+  /// Theme principal (Dark mode par défaut - Design v2)
+  static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       
-      // Color Scheme
-      colorScheme: ColorScheme.light(
-        primary: AntologyColors.forestGreen,
-        onPrimary: Colors.white,
-        secondary: AntologyColors.terracotta,
-        onSecondary: Colors.white,
-        tertiary: AntologyColors.skyBlue,
-        onTertiary: Colors.white,
-        surface: Colors.white,
-        onSurface: Colors.black87,
-        surfaceContainerHighest: AntologyColors.grayLight,
-        outline: AntologyColors.gray400.withOpacity(0.3),
-        error: AntologyColors.coral400,
+      // Color Scheme (Design v2)
+      colorScheme: ColorScheme.dark(
+        primary: AntologyColors.amber,
+        onPrimary: AntologyColors.primaryForeground,
+        secondary: AntologyColors.moss,
+        onSecondary: AntologyColors.primaryForeground,
+        tertiary: AntologyColors.slate,
+        onTertiary: AntologyColors.primaryForeground,
+        surface: AntologyColors.surface,
+        onSurface: AntologyColors.foreground,
+        surfaceContainerHighest: AntologyColors.surface,
+        outline: AntologyColors.border,
+        error: AntologyColors.terracotta,
       ),
       
       // Scaffold
-      scaffoldBackgroundColor: AntologyColors.grayLight,
+      scaffoldBackgroundColor: AntologyColors.background,
+      
+      // AppBar
+      appBarTheme: AppBarTheme(
+        backgroundColor: AntologyColors.background,
+        foregroundColor: AntologyColors.foreground,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.ptSerif(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          fontStyle: FontStyle.italic,
+          color: AntologyColors.amber,
+        ),
+        iconTheme: IconThemeData(color: AntologyColors.sand),
+      ),
+      
+      // Typography (Design v2)
+      textTheme: _buildTextTheme(isDark: true),
+      
+      // Cards
+      cardTheme: CardTheme(
+        elevation: 0,
+        color: AntologyColors.surface,
+        surfaceTintColor: Colors.transparent,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AntologyRadius.lg),
+          side: BorderSide(
+            color: AntologyColors.border,
+            width: 1,
+          ),
+        ),
+      ),
+      
+      // Buttons
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AntologyColors.amber,
+          foregroundColor: AntologyColors.primaryForeground,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          minimumSize: const Size(140, 44),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AntologyRadius.full),
+          ),
+          textStyle: GoogleFonts.dmSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AntologyColors.sand,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          minimumSize: const Size(140, 44),
+          side: BorderSide(
+            color: AntologyColors.border,
+            width: 1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AntologyRadius.full),
+          ),
+          textStyle: GoogleFonts.dmSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
       
       // AppBar
       appBarTheme: AppBarTheme(
@@ -242,107 +340,108 @@ class AntologyTheme {
   }
   
   static TextTheme _buildTextTheme({bool isDark = false}) {
-    final Color textColor = isDark ? Colors.white : Colors.black87;
+    final Color textColor = isDark ? AntologyColors.foreground : Colors.black87;
     final Color secondaryTextColor = isDark 
-        ? Colors.white70 
+        ? AntologyColors.sand 
         : AntologyColors.gray600;
     
     return TextTheme(
-      // Display - Pour les noms scientifiques (Merriweather)
-      displayLarge: GoogleFonts.merriweather(
-        fontSize: 28,
-        fontWeight: FontWeight.w400,
+      // Display - Titres principaux (PT Serif - 30px pour H1)
+      displayLarge: GoogleFonts.ptSerif(
+        fontSize: 30,
+        fontWeight: FontWeight.w700,
         height: 1.2,
-        color: textColor,
+        color: AntologyColors.amber,
         fontStyle: FontStyle.italic,
       ),
-      displayMedium: GoogleFonts.merriweather(
+      displayMedium: GoogleFonts.ptSerif(
         fontSize: 24,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         height: 1.2,
         color: textColor,
         fontStyle: FontStyle.italic,
       ),
-      displaySmall: GoogleFonts.merriweather(
+      displaySmall: GoogleFonts.ptSerif(
         fontSize: 20,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w700,
         height: 1.3,
         color: textColor,
         fontStyle: FontStyle.italic,
       ),
       
-      // Headlines - Titres de sections
-      headlineLarge: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w500,
-        height: 1.3,
-        color: textColor,
-      ),
-      headlineMedium: TextStyle(
+      // Headlines - Titres de sections (PT Serif - 20px pour H2)
+      headlineLarge: GoogleFonts.ptSerif(
         fontSize: 20,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w700,
         height: 1.3,
         color: textColor,
+        fontStyle: FontStyle.italic,
       ),
-      headlineSmall: TextStyle(
+      headlineMedium: GoogleFonts.dmSans(
         fontSize: 18,
         fontWeight: FontWeight.w500,
         height: 1.3,
         color: textColor,
       ),
+      headlineSmall: GoogleFonts.dmSans(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        height: 1.3,
+        color: textColor,
+      ),
       
-      // Titles - Sous-titres
-      titleLarge: TextStyle(
+      // Titles - Sous-titres (DM Sans)
+      titleLarge: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         height: 1.4,
         color: textColor,
       ),
-      titleMedium: TextStyle(
+      titleMedium: GoogleFonts.dmSans(
         fontSize: 15,
         fontWeight: FontWeight.w500,
         height: 1.4,
         color: textColor,
       ),
-      titleSmall: TextStyle(
+      titleSmall: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         height: 1.4,
         color: textColor,
       ),
       
-      // Body - Texte principal
-      bodyLarge: TextStyle(
+      // Body - Texte principal (DM Sans - 14px par défaut)
+      bodyLarge: GoogleFonts.dmSans(
         fontSize: 16,
         fontWeight: FontWeight.w400,
-        height: 1.7,
+        height: 1.6,
         color: textColor,
       ),
-      bodyMedium: TextStyle(
+      bodyMedium: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 1.6,
         color: textColor,
       ),
-      bodySmall: TextStyle(
+      bodySmall: GoogleFonts.dmSans(
         fontSize: 13,
         fontWeight: FontWeight.w400,
         height: 1.5,
         color: secondaryTextColor,
       ),
       
-      // Labels - Étiquettes
-      labelLarge: TextStyle(
+      // Labels - Étiquettes (DM Sans - 12px pour xs)
+      labelLarge: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: textColor,
       ),
-      labelMedium: TextStyle(
+      labelMedium: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: secondaryTextColor,
       ),
-      labelSmall: TextStyle(
+      labelSmall: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: secondaryTextColor,
